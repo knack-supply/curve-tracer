@@ -9,7 +9,7 @@ gtk = "^0.5.0"
 relm = "^0.15.0"
 relm-derive = "^0.15.0"
 relm-attributes = "^0.15.0"
-digilent-waveforms = "0.0.3"
+digilent-waveforms = "0.0.4"
 cairo-rs = "0.5.0"
 csv = "1"
 serde = "1"
@@ -24,4 +24,13 @@ structopt = "0.2.14"
 structopt-derive = "0.2.14"
 
 [features]
+link-with-stub = ["digilent-waveforms/link-with-stub"]
 default = ["relm/unstable", "relm-attributes/unstable", "relm-derive/unstable", "gtk/v3_16"]
+
+[[bin]]
+name = "curve-tracer"
+path = "src/bin/gui.rs"
+
+[[bin]]
+name = "curve-tracer-cli"
+path = "src/bin/cli.rs"

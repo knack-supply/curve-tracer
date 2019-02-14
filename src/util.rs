@@ -39,3 +39,24 @@ impl <N: Real + ToPrimitive> Display for Engineering<N> {
         }
     }
 }
+
+pub trait Try {
+    type Ok;
+    type Error;
+
+    fn into_result(self) -> Result<Self::Ok, Self::Error>;
+}
+
+pub struct NoneError;
+
+impl<T> Try for Option<T> {
+    type Ok=T;
+    type Error=NoneError;
+
+    fn into_result(self) -> Result<Self::Ok, Self::Error> {
+        match self {
+            Some(t) => Ok(t),
+            None => Err(NoneError)
+        }
+    }
+}

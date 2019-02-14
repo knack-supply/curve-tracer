@@ -16,7 +16,6 @@ sudo: true
 env:
   global:
     - LD_LIBRARY_PATH=/usr/local/lib
-    - RUSTFLAGS="-C link-arg=-Wl,--unresolved-symbols=ignore-all -C link-arg=-Wl,-undefined,dynamic_lookup"
 addons:
   apt:
     packages:
@@ -29,5 +28,5 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y clang; fi
 script:
   - rustc --version
-  - RUST_BACKTRACE=1 cargo build
+  - RUST_BACKTRACE=1 cargo build --features link-with-stub
   - cargo clippy

@@ -1,5 +1,4 @@
 environment:
-  RUSTFLAGS: "-C link-arg=-Wl,--unresolved-symbols=ignore-all -C link-arg=-Wl,-undefined,dynamic_lookup"
   matrix:
     - RUST: nightly-2019-01-24
       BITS: 32
@@ -20,6 +19,6 @@ install:
 
 build_script:
   - cargo clippy
-  - cargo build
+  - cargo build --features link-with-stub
 
 test: false

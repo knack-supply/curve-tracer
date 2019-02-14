@@ -3,7 +3,7 @@ use crate::backend::Backend;
 use crate::backend::RawTrace;
 use itertools::Itertools;
 use time::Duration;
-use std::ops::Try;
+use crate::util::Try;
 
 pub struct AD2 {
     skip: f64,
