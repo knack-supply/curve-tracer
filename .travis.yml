@@ -1,15 +1,14 @@
 language: rust
-dist: xenial
 matrix:
   include:
     - os: linux
       env: TARGET=armv7-unknown-linux-gnueabihf
       rust: nightly-2019-01-24
-      dist: trusty
+      dist: xenial
     - os: linux
-      env: TARGET=x86_64-apple-darwin
+      env: TARGET=x86_64-unknown-linux-gnu
       rust: nightly-2019-01-24
-      dist: trusty
+      dist: xenial
     - os: osx
       rust: nightly-2019-01-24
 sudo: true
