@@ -9,7 +9,6 @@ install:
   - curl -sSf -o rustup-init.exe https://win.rustup.rs
   - rustup-init.exe --default-host "%ARCH%-pc-windows-gnu" --default-toolchain %RUST% -y
   - SET PATH=C:\msys64\mingw%BITS%\bin;C:\Users\appveyor\.cargo\bin;%PATH%;C:\msys64\usr\bin
-  - rustup component add clippy
   - rustc -Vv
   - cargo -Vv
   - pacman --noconfirm --needed -S mingw-w64-%ARCH%-gtk3 mingw-w64-%ARCH%-clang mingw-w64-%ARCH%-toolchain
@@ -17,7 +16,6 @@ install:
 build_script:
   - rustc --version
   - cargo build --release --features link-with-stub
-  - cargo clippy
 
 test: false
 
