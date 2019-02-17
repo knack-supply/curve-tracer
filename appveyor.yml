@@ -1,7 +1,7 @@
 environment:
   matrix:
-    - RUST: nightly-2019-01-24
-      BITS: 32
+#    - RUST: nightly-2019-01-24
+#      BITS: 32
     - RUST: nightly-2019-01-24
       BITS: 64
 
@@ -19,6 +19,18 @@ install:
 
 build_script:
   - cargo clippy
-  - cargo build --features link-with-stub
+  - cargo build --release --features link-with-stub
 
 test: false
+
+deploy:
+  description: release
+  provider: GitHub
+  auth_token:
+    secure: "cdGt/v2Nj/1qGdf908Tij0R0d6IsfktJaf8EY+XTocWwQ3WBlABZCV5f+ScaOrLO"
+  artifact: "/target\\release\\curve-tracer(-cli)?\.exe/"
+  draft: false
+  prerelease: false
+  on:
+    branch: master
+    APPVEYOR_REPO_TAG: true

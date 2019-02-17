@@ -22,9 +22,9 @@ impl Backend for AD2 {
             .configs.first().into_result().map_err(|_| failure::err_msg("No device configs found"))?
             .open()?;
 
-        device.reset();
-        device.set_auto_configure(true);
-        device.set_enabled(true);
+        device.reset()?;
+        device.set_auto_configure(true)?;
+        device.set_enabled(true)?;
 
         let diode_current_limit_ma = 40.0;
         let resistor = 101.0;
@@ -47,38 +47,38 @@ impl Backend for AD2 {
             offset: max_v / 2.0,
             symmetry: 50.0,
             phase_deg: 270.0,
-        });
-        out_vf_carrier.set_enabled(true);
-        out_vf.set_duration(Duration::nanoseconds((total_time / 1.0e9) as i64));
-        out_vf.set_repeat_count(0);
+        })?;
+        out_vf_carrier.set_enabled(true)?;
+        out_vf.set_duration(Duration::nanoseconds((total_time / 1.0e9) as i64))?;
+        out_vf.set_repeat_count(0)?;
 
         let ps = device.analog_io();
         let v_pos = ps.channel(0);
-        v_pos.node(1).set_value(5.0);
-        v_pos.node(0).set_value(1.0);
+        v_pos.node(1).set_value(5.0)?;
+        v_pos.node(0).set_value(1.0)?;
 
         let v_neg = ps.channel(1);
-        v_neg.node(1).set_value(-5.0);
-        v_neg.node(0).set_value(1.0);
+        v_neg.node(1).set_value(-5.0)?;
+        v_neg.node(0).set_value(1.0)?;
 
-        ps.set_enabled(true);
+        ps.set_enabled(true)?;
 
-        out_vf.start();
+        out_vf.start()?;
 
         let input = device.analog_input();
-        input.set_frequency(200000.0);
+        input.set_frequency(200_000.0)?;
 //        input.set_buffer_size();
-        input.set_record_mode(sampling_time);
+        input.set_record_mode(sampling_time)?;
 
         let in_v_shunt = input.channel(0);
-        in_v_shunt.set_offset(2.0);
-        in_v_shunt.set_range(10.0);
+        in_v_shunt.set_offset(2.0)?;
+        in_v_shunt.set_range(10.0)?;
 
         let in_v = input.channel(1);
-        in_v.set_offset(-0.5);
-        in_v.set_range(1.0);
+        in_v.set_offset(-0.5)?;
+        in_v.set_range(1.0)?;
 
-        input.start();
+        input.start()?;
 
         let mut vs = Vec::new();
         let mut vss = Vec::new();
@@ -106,8 +106,8 @@ impl Backend for AD2 {
                 vss.extend(itertools::repeat_n(std::f64::NAN, lost as usize));
             }
             if available > 0 {
-                in_v.fetch_samples(&mut vs, available);
-                in_v_shunt.fetch_samples(&mut vss, available);
+                in_v.fetch_samples(&mut vs, available)?;
+                in_v_shunt.fetch_samples(&mut vss, available)?;
             }
         }
 

@@ -95,7 +95,7 @@ fn log_linear_simplified_shockley(trace: &RawTrace, current_offset: CurrentOffse
     LogLinearShockleyModel { current_offset, is, n_vt }
 }
 
-
+#[allow(dead_code)]
 fn linear_regression_naive<N: Real, D: DimName>(x: MatrixMN<N, D, Dynamic>, y: DVector<N>) -> DVector<N>
     where DefaultAllocator: Allocator<N, Dynamic, Dynamic> + Allocator<N, D, Dynamic>
 {
