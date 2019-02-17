@@ -1,6 +1,7 @@
 # Curve tracer GUI for AD2 curve tracer
 
-[![ci](https://travis-ci.org/knack-supply/curve-tracer.svg)](https://travis-ci.org/knack-supply/curve-tracer)
+[![ci](https://travis-ci.org/knack-supply/curve-tracer.svg?branch=master)](https://travis-ci.org/knack-supply/curve-tracer)
+[![win ci](https://ci.appveyor.com/api/projects/status/g7ov8xujfwa11rg7/branch/master?svg=true)](https://ci.appveyor.com/project/ilya-epifanov/curve-tracer/branch/master)
 
 A companion app for [AD2 curve tracer](https://knack.supply/product/ad2ct/)
 
