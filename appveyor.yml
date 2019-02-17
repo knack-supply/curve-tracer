@@ -21,7 +21,7 @@ install:
 build_script:
   - rustc --version
   - cargo clippy --release --features link-with-stub
-  - cargo build --release --features link-with-stub
+  - cargo build -vv --release --features link-with-stub
 
 test: false
 
