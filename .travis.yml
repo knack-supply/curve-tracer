@@ -32,8 +32,8 @@ before_install:
 
 script:
   - rustc --version
-  - cargo clippy --release --features link-with-stub
   - cargo build --release --features link-with-stub
+  - cargo clippy
 
 deploy:
   provider: releases
