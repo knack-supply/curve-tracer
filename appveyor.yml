@@ -1,14 +1,11 @@
 environment:
   RUST_BACKTRACE: 1
   matrix:
-#    - RUST: nightly-2019-01-24
-#      BITS: 32
     - RUST: stable
       BITS: 64
 
 install:
-  - IF "%BITS%" == "32" SET ARCH=i686
-  - IF "%BITS%" == "64" SET ARCH=x86_64
+  - SET ARCH=x86_64
   - curl -sSf -o rustup-init.exe https://win.rustup.rs
   - rustup-init.exe --default-host "%ARCH%-pc-windows-gnu" --default-toolchain %RUST% -y
   - SET PATH=C:\msys64\mingw%BITS%\bin;C:\Users\appveyor\.cargo\bin;%PATH%;C:\msys64\usr\bin
@@ -19,9 +16,8 @@ install:
 
 build_script:
   - rustc --version
-  - cargo build -vv --release --features link-with-stub
+  - cargo build --release --features link-with-stub
   - cargo clippy
-  - 7z a digilent-waveforms-build-dir.zip target/release/build/digilent-waveforms-*
 
 test: false
 
@@ -42,8 +38,6 @@ artifacts:
     name: curve-tracer.exe
   - path: target/release/curve-tracer-cli.exe
     name: curve-tracer-cli.exe
-  - path: digilent-waveforms-build-dir.zip
-    name: build-debug
 
 cache:
   - C:\msys64\var\cache\pacman\pkg
