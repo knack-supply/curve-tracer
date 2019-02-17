@@ -1,8 +1,9 @@
 environment:
+  RUST_BACKTRACE: 1
   matrix:
 #    - RUST: nightly-2019-01-24
 #      BITS: 32
-    - RUST: nightly-2019-01-24
+    - RUST: stable
       BITS: 64
 
 install:
@@ -18,7 +19,8 @@ install:
   - pacman --noconfirm -S mingw-w64-%ARCH%-clang
 
 build_script:
-  - cargo clippy
+  - rustc --version
+  - cargo clippy --release --features link-with-stub
   - cargo build --release --features link-with-stub
 
 test: false
@@ -40,3 +42,7 @@ artifacts:
     name: curve-tracer.exe
   - path: target/release/curve-tracer-cli.exe
     name: curve-tracer-cli.exe
+
+cache:
+  - C:\msys64\var\cache\pacman\pkg
+  - C:\Users\appveyor\.cargo

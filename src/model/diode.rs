@@ -50,7 +50,7 @@ fn current_offset(trace: &RawTrace) -> CurrentOffsetModel {
     }
     CurrentOffsetModel {
         current_offset: if samples > 100 {
-            i_sum / (samples as f64)
+            i_sum / (f64::from(samples))
         } else {
             0.0
         }
@@ -100,7 +100,7 @@ fn linear_regression_naive<N: Real, D: DimName>(x: MatrixMN<N, D, Dynamic>, y: D
     where DefaultAllocator: Allocator<N, Dynamic, Dynamic> + Allocator<N, D, Dynamic>
 {
     let a = &x.transpose() * &x;
-    let i = a.pseudo_inverse(N::from_f64(0.000001).unwrap()).unwrap();
+    let i = a.pseudo_inverse(N::from_f64(0.000_001).unwrap()).unwrap();
     i * x.transpose() * y
 }
 

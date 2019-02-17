@@ -108,8 +108,8 @@ impl Update for Win {
             Msg::UpdateDrawBuffer => {
                 let cr = self.model.draw_handler.get_context();
                 let allocation = self.widgets.drawing_area.get_allocation();
-                let width = allocation.width as f64;
-                let height = allocation.height as f64;
+                let width = f64::from(allocation.width);
+                let height = f64::from(allocation.height);
 
                 cr.identity_matrix();
                 cr.translate(0.5, 0.5);
@@ -264,7 +264,7 @@ impl Widget for Win {
         right_pane.add(&model_text);
 
         let drawing_area = DrawingArea::new();
-        &mut model.draw_handler.init(&drawing_area);
+        model.draw_handler.init(&drawing_area);
         drawing_area.set_hexpand(true);
         hbox.add(&drawing_area);
         hbox.add(&right_pane);

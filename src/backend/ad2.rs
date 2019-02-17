@@ -5,6 +5,7 @@ use itertools::Itertools;
 use time::Duration;
 use crate::util::Try;
 
+#[derive(Default)]
 pub struct AD2 {
     skip: f64,
 }
@@ -33,7 +34,7 @@ impl Backend for AD2 {
         let sampling_time = 0.5;
         let cycles_to_sample = 2;
 
-        let hz = cycles_to_sample as f64 / sampling_time;
+        let hz = f64::from(cycles_to_sample) / sampling_time;
 
         let current_limit = diode_current_limit_ma / 1000.0;
         let max_v = current_limit * resistor + 0.5;
