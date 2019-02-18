@@ -24,8 +24,7 @@ deploy:
   provider: GitHub
   auth_token:
     secure: "cdGt/v2Nj/1qGdf908Tij0R0d6IsfktJaf8EY+XTocWwQ3WBlABZCV5f+ScaOrLO"
-  artifact: "/target\\release\\curve-tracer(-cli)?\\.exe/"
-  draft: false
+  draft: true
   prerelease: false
   on:
     branch: master
