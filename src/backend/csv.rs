@@ -18,15 +18,18 @@ struct Record {
 
 impl Csv {
     pub fn new(filename: String) -> Self {
-        Csv { filename, skip: 0.5 }
+        Csv {
+            filename,
+            skip: 0.5,
+        }
     }
 }
 
 impl Backend for Csv {
     fn trace(&self) -> Result<RawTrace> {
         let mut rdr = ReaderBuilder::new()
-                 .delimiter(b'\t')
-                 .from_reader(File::open(&self.filename)?);
+            .delimiter(b'\t')
+            .from_reader(File::open(&self.filename)?);
 
         let mut vs = Vec::new();
         let mut is = Vec::new();
@@ -38,6 +41,9 @@ impl Backend for Csv {
         }
 
         let start_ix = (vs.len() as f64 * self.skip) as usize;
-        Ok(RawTrace::new(is.split_off(start_ix), vs.split_off(start_ix)))
+        Ok(RawTrace::new(
+            is.split_off(start_ix),
+            vs.split_off(start_ix),
+        ))
     }
 }

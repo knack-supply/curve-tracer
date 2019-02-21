@@ -7,27 +7,15 @@ extern crate relm_derive;
 use std::f64::consts::PI;
 
 use cairo::enums::{FontSlant, FontWeight};
-use gtk::{
-    Button,
-    ButtonExt,
-    ButtonsType,
-    ContainerExt,
-    DialogExt,
-    DialogFlags,
-    GtkWindowExt,
-    Inhibit,
-    Label,
-    LabelExt,
-    MessageType,
-    WidgetExt,
-    Window,
-    WindowType,
-};
 use gtk::DrawingArea;
 use gtk::Orientation::{Horizontal, Vertical};
+use gtk::{
+    Button, ButtonExt, ButtonsType, ContainerExt, DialogExt, DialogFlags, GtkWindowExt, Inhibit,
+    Label, LabelExt, MessageType, WidgetExt, Window, WindowType,
+};
 use itertools_num::linspace;
-use relm::{Relm, Update, Widget};
 use relm::DrawHandler;
+use relm::{Relm, Update, Widget};
 use structopt::StructOpt;
 
 use curve_tracer::backend::RawTrace;
@@ -83,28 +71,31 @@ impl Update for Win {
 
     fn update(&mut self, event: Msg) {
         match event {
-            Msg::Trace => {
-                match self.model.opt.device().trace() {
-                    Ok(trace) => {
-                        self.model.raw_trace = trace;
+            Msg::Trace => match self.model.opt.device().trace() {
+                Ok(trace) => {
+                    self.model.raw_trace = trace;
 
-                        let model = diode_model(&self.model.raw_trace);
-                        self.model.device_model = Box::new(model);
-                        self.widgets.model_text.set_markup(&format!("{}", &self.model.device_model));
+                    let model = diode_model(&self.model.raw_trace);
+                    self.model.device_model = Box::new(model);
+                    self.widgets
+                        .model_text
+                        .set_markup(&format!("{}", &self.model.device_model));
 
-                        self.widgets.drawing_area.queue_resize();
-                    }
-                    Err(err) => {
-                        let error_msg = gtk::MessageDialog::new(
-                            Some(&self.widgets.window), DialogFlags::MODAL,
-                            MessageType::Error, ButtonsType::Close,
-                            &format!("Error: {}", err));
-
-                        error_msg.run();
-                        error_msg.close();
-                    }
+                    self.widgets.drawing_area.queue_resize();
                 }
-            }
+                Err(err) => {
+                    let error_msg = gtk::MessageDialog::new(
+                        Some(&self.widgets.window),
+                        DialogFlags::MODAL,
+                        MessageType::Error,
+                        ButtonsType::Close,
+                        &format!("Error: {}", err),
+                    );
+
+                    error_msg.run();
+                    error_msg.close();
+                }
+            },
             Msg::UpdateDrawBuffer => {
                 let cr = self.model.draw_handler.get_context();
                 let allocation = self.widgets.drawing_area.get_allocation();
@@ -165,8 +156,20 @@ impl Update for Win {
                 }
 
                 cr.set_source_rgba(0.0, 0.0, 0.0, 0.05);
-                for (&i, &v) in self.model.raw_trace.current.iter().zip(self.model.raw_trace.voltage.iter()) {
-                    cr.arc(v * v_factor, height - 20.0 - i * i_factor, 1.0, 0.0, PI * 2.0);
+                for (&i, &v) in self
+                    .model
+                    .raw_trace
+                    .current
+                    .iter()
+                    .zip(self.model.raw_trace.voltage.iter())
+                {
+                    cr.arc(
+                        v * v_factor,
+                        height - 20.0 - i * i_factor,
+                        1.0,
+                        0.0,
+                        PI * 2.0,
+                    );
                     cr.fill();
                 }
 
@@ -178,7 +181,10 @@ impl Update for Win {
                         cr.set_font_size(13.0);
                         let text = format!("{:04.1}mA", i_gridline * 1000.0);
                         let extents = cr.text_extents(&text);
-                        cr.move_to(2.0, height - 20.0 - i_gridline * i_factor + extents.height + 2.0);
+                        cr.move_to(
+                            2.0,
+                            height - 20.0 - i_gridline * i_factor + extents.height + 2.0,
+                        );
                         cr.show_text(&text);
                     }
                 }
@@ -190,9 +196,15 @@ impl Update for Win {
                         let text = format!("{:.3}V", v_gridline);
                         let extents = cr.text_extents(&text);
                         if ix == 10 {
-                            cr.move_to(v_gridline * v_factor - extents.width - 2.0, extents.height + 2.0);
+                            cr.move_to(
+                                v_gridline * v_factor - extents.width - 2.0,
+                                extents.height + 2.0,
+                            );
                         } else {
-                            cr.move_to(v_gridline * v_factor - extents.width / 2.0, extents.height + 2.0);
+                            cr.move_to(
+                                v_gridline * v_factor - extents.width / 2.0,
+                                extents.height + 2.0,
+                            );
                         }
                         cr.show_text(&text);
                     }
@@ -202,9 +214,15 @@ impl Update for Win {
 
                 for (ix, v) in linspace(0.0, max_v, 101).enumerate() {
                     if ix == 0 {
-                        cr.move_to(v * v_factor, height - 20.0 - i_factor * self.model.device_model.evaluate(v));
+                        cr.move_to(
+                            v * v_factor,
+                            height - 20.0 - i_factor * self.model.device_model.evaluate(v),
+                        );
                     } else {
-                        cr.line_to(v * v_factor, height - 20.0 - i_factor * self.model.device_model.evaluate(v));
+                        cr.line_to(
+                            v * v_factor,
+                            height - 20.0 - i_factor * self.model.device_model.evaluate(v),
+                        );
                     }
                 }
                 cr.stroke();
@@ -275,9 +293,19 @@ impl Widget for Win {
 
         window.show_all();
 
-        connect!(relm, drawing_area, connect_size_allocate(_, _), Msg::UpdateDrawBuffer);
+        connect!(
+            relm,
+            drawing_area,
+            connect_size_allocate(_, _),
+            Msg::UpdateDrawBuffer
+        );
         connect!(relm, trace_button, connect_clicked(_), Msg::Trace);
-        connect!(relm, window, connect_delete_event(_, _), return (Some(Msg::Quit), Inhibit(false)));
+        connect!(
+            relm,
+            window,
+            connect_delete_event(_, _),
+            return (Some(Msg::Quit), Inhibit(false))
+        );
 
         Win {
             model,
@@ -290,7 +318,6 @@ impl Widget for Win {
         }
     }
 }
-
 
 fn main() {
     let opt = Opt::from_args();

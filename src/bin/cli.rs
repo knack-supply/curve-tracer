@@ -1,7 +1,6 @@
-
 use curve_tracer::model::diode::diode_model;
-use failure::Error;
 use curve_tracer::options::Opt;
+use failure::Error;
 use structopt::StructOpt;
 
 fn main() -> Result<(), Error> {

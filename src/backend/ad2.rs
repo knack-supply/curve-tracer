@@ -1,9 +1,9 @@
-use digilent_waveforms::*;
 use crate::backend::Backend;
 use crate::backend::RawTrace;
+use crate::util::Try;
+use digilent_waveforms::*;
 use itertools::Itertools;
 use time::Duration;
-use crate::util::Try;
 
 #[derive(Default)]
 pub struct AD2 {
@@ -19,8 +19,14 @@ impl AD2 {
 impl Backend for AD2 {
     fn trace(&self) -> crate::backend::Result<RawTrace> {
         let device = devices()?
-            .devices.first().into_result().map_err(|_| failure::err_msg("No devices found"))?
-            .configs.first().into_result().map_err(|_| failure::err_msg("No device configs found"))?
+            .devices
+            .first()
+            .into_result()
+            .map_err(|_| failure::err_msg("No devices found"))?
+            .configs
+            .first()
+            .into_result()
+            .map_err(|_| failure::err_msg("No device configs found"))?
             .open()?;
 
         device.reset()?;
@@ -68,7 +74,7 @@ impl Backend for AD2 {
 
         let input = device.analog_input();
         input.set_frequency(200_000.0)?;
-//        input.set_buffer_size();
+        //        input.set_buffer_size();
         input.set_record_mode(sampling_time)?;
 
         let in_v_shunt = input.channel(0);
@@ -87,7 +93,8 @@ impl Backend for AD2 {
             let status = input.get_status().unwrap();
             if status == AnalogAcquisitionStatus::Config
                 || status == AnalogAcquisitionStatus::Prefill
-                || status == AnalogAcquisitionStatus::Armed {
+                || status == AnalogAcquisitionStatus::Armed
+            {
                 std::thread::yield_now();
                 continue;
             }
@@ -112,7 +119,11 @@ impl Backend for AD2 {
         }
 
         let start_ix = (vs.len() as f64 * self.skip) as usize;
-        let is = vss.into_iter().skip(start_ix).map(|v_s| v_s / 101.0).collect_vec();
+        let is = vss
+            .into_iter()
+            .skip(start_ix)
+            .map(|v_s| v_s / 101.0)
+            .collect_vec();
         Ok(RawTrace::new(is, vs.split_off(start_ix)))
     }
 }

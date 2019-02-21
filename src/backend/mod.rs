@@ -27,5 +27,5 @@ pub trait Backend {
     fn trace(&self) -> Result<RawTrace>;
 }
 
-pub use self::csv::Csv;
 pub use self::ad2::AD2;
+pub use self::csv::Csv;
