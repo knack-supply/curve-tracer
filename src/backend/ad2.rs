@@ -85,7 +85,6 @@ impl Backend for AD2 {
         let mut vss = Vec::new();
         loop {
             let status = input.get_status().unwrap();
-            eprintln!("Status: {:?}", status);
             if status == AnalogAcquisitionStatus::Config
                 || status == AnalogAcquisitionStatus::Prefill
                 || status == AnalogAcquisitionStatus::Armed {

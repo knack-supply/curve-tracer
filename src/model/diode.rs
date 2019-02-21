@@ -1,10 +1,15 @@
+use std::fmt::Display;
+
+use autodiff;
+use autodiff::forward_autodiff::{F, grad};
+use itertools::Itertools;
 use nalgebra::*;
 use nalgebra::allocator::Allocator;
 use nalgebra::allocator::Reallocator;
+use num_traits::float::Float;
 
 use crate::backend::RawTrace;
 use crate::model::IVModel;
-use std::fmt::Display;
 use crate::util::Engineering;
 
 pub struct NullModel {}
@@ -95,6 +100,80 @@ fn log_linear_simplified_shockley(trace: &RawTrace, current_offset: CurrentOffse
     LogLinearShockleyModel { current_offset, is, n_vt }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct ShockleyModel {
+    pub current_offset: CurrentOffsetModel,
+    pub is: f64,
+    pub n_vt: f64,
+}
+
+impl IVModel for ShockleyModel {
+    fn evaluate(&self, v: f64) -> f64 {
+        self.current_offset.evaluate(v) + self.is * ((v / self.n_vt).exp() + 1.0)
+    }
+}
+
+impl Display for ShockleyModel {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        writeln!(f, "{}", self.current_offset)?;
+        writeln!(f, "I<sub>S</sub>\t{:.3}A", Engineering(self.is))?;
+        writeln!(f, "n⋅V<sub>T</sub>\t{:.3}V", Engineering(self.n_vt))?;
+        Ok(())
+    }
+}
+
+fn shockley(trace: &RawTrace, simplified_shockley: LogLinearShockleyModel) -> ShockleyModel {
+    let max_relative_change = 0.000_1;
+    let max_absolute_change = 0.000_000_1;
+    let max_iterations = 1000;
+
+    let mut model = [simplified_shockley.current_offset.current_offset,
+        simplified_shockley.is, simplified_shockley.n_vt];
+
+    let iv = trace.current.iter().cloned().zip(trace.voltage.iter().cloned()).collect_vec();
+
+    let f = |m: &[F]| (m[0] + m[1] * ((m[3] / m[2]).exp() - F::cst(1.0)));
+
+    for _ in 0..max_iterations {
+        let jacobian_rows: Vec<RowVector3<f64>> = iv.iter().cloned().map(|(_, v)| {
+            let params = [model[0], model[1], model[2], v];
+            let g = grad(f, &params);
+            RowVector3::new(g[0], g[1], g[2])
+        }).collect_vec();
+        let jacobian: MatrixMN<f64, Dynamic, U3> = MatrixMN::from_rows(jacobian_rows.as_slice());
+
+        let svd = SVD::new(jacobian, true, true);
+
+        let residuals = DVector::<f64>::from_iterator(iv.len(), iv.iter().cloned().map(|(i, v)| {
+            let params = [F::var(model[0]), F::var(model[1]), F::var(model[2]), F::cst(v)];
+            let i_model = f(&params).value();
+            i - i_model
+        }));
+
+        let v = svd.v_t.unwrap().transpose();
+        let sigma = Matrix::from_diagonal(&svd.singular_values.map(|e| 1.0 / e));
+        let u_t = svd.u.unwrap().transpose();
+        let correction = v * sigma * (u_t * residuals);
+
+        let relative_change = (correction[0] / model[0]).abs() + (correction[1] / model[1]).abs() + (correction[2] / model[2]).abs();
+        let absolute_change = correction.map(f64::abs).sum();
+
+        model[0] += correction[0];
+        model[1] += correction[1];
+        model[2] += correction[2];
+
+        if relative_change <= max_relative_change && absolute_change <= max_absolute_change {
+            break;
+        }
+    }
+
+    ShockleyModel {
+        current_offset: CurrentOffsetModel { current_offset: model[0] },
+        is: model[1],
+        n_vt: model[2],
+    }
+}
+
 #[allow(dead_code)]
 fn linear_regression_naive<N: Real, D: DimName>(x: MatrixMN<N, D, Dynamic>, y: DVector<N>) -> DVector<N>
     where DefaultAllocator: Allocator<N, Dynamic, Dynamic> + Allocator<N, D, Dynamic>
@@ -134,6 +213,8 @@ fn linear_regression<N: Real, D: DimName>(x: MatrixMN<N, D, Dynamic>, y: MatrixM
     (v_t.transpose() * sinv).transpose().fixed_resize::<U1, D>(N::zero())
 }
 
-pub fn diode_model(trace: &RawTrace) -> LogLinearShockleyModel {
-    log_linear_simplified_shockley(&trace, current_offset(&trace))
+pub fn diode_model(trace: &RawTrace) -> ShockleyModel {
+    shockley(
+        &trace, log_linear_simplified_shockley(
+            &trace, current_offset(&trace)))
 }
