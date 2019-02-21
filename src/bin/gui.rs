@@ -284,6 +284,7 @@ impl Widget for Win {
         let drawing_area = DrawingArea::new();
         model.draw_handler.init(&drawing_area);
         drawing_area.set_hexpand(true);
+        drawing_area.set_size_request(500, 500);
         hbox.add(&drawing_area);
         hbox.add(&right_pane);
 
