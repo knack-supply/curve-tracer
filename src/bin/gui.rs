@@ -7,6 +7,7 @@ extern crate relm_derive;
 use std::f64::consts::PI;
 
 use cairo::enums::{FontSlant, FontWeight};
+use gdk_pixbuf::Pixbuf;
 use gtk::DrawingArea;
 use gtk::Orientation::{Horizontal, Vertical};
 use gtk::{
@@ -243,6 +244,8 @@ impl Widget for Win {
 
     // Create the widgets.
     fn view(relm: &Relm<Self>, mut model: Self::Model) -> Self {
+        Window::set_default_icon(&Pixbuf::new_from_inline(include_bytes!("../../icon256.pixbuf"), false).unwrap());
+
         let hbox = gtk::Box::new(Horizontal, 0);
 
         let right_pane = gtk::Box::new(Vertical, 0);

@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 gtk = "^0.5.0"
+gdk-pixbuf = "^0.5.0"
 relm = "^0.15.0"
 relm-derive = "^0.15.0"
 relm-attributes = "^0.15.0"
@@ -23,6 +24,10 @@ num-traits = "0.2.6"
 autodiff = "0.1.5"
 structopt = "0.2.14"
 structopt-derive = "0.2.14"
+
+[build-dependencies]
+winres = "0.1.8"
+failure = "0.1.5"
 
 [features]
 link-with-stub = ["digilent-waveforms/link-with-stub"]
