@@ -2,14 +2,20 @@ language: rust
 matrix:
   include:
     - os: linux
-      env: TARGET=armv7-unknown-linux-gnueabihf
+      env:
+        - TARGET=armv7-unknown-linux-gnueabihf
+        - BINARY_SUFFIX=linux-armv7
       rust: stable
       dist: xenial
     - os: linux
-      env: TARGET=x86_64-unknown-linux-gnu
+      env:
+        - TARGET=x86_64-unknown-linux-gnu
+        - BINARY_SUFFIX=linux-amd64
       rust: stable
       dist: xenial
     - os: osx
+      env:
+        - BINARY_SUFFIX=macos
       rust: stable
 
 sudo: true
@@ -35,10 +41,10 @@ script:
   - cargo build --release
 
 before_deploy:
-  - cargo install cargo-deb
-  - cargo deb --separate-debug-symbols
-  - mv target/release/ks-curve-tracer target/release/ks-curve-tracer-$TRAVIS_OS_NAME
-  - mv target/release/ks-curve-tracer-cli target/release/ks-curve-tracer-cli-$TRAVIS_OS_NAME
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cargo install cargo-deb; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cargo deb --separate-debug-symbols; fi
+  - mv target/release/ks-curve-tracer target/release/ks-curve-tracer-$BINARY_SUFFIX
+  - mv target/release/ks-curve-tracer-cli target/release/ks-curve-tracer-cli-$BINARY_SUFFIX
 
 deploy:
   provider: releases
