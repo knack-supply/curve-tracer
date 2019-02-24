@@ -493,7 +493,7 @@ dependencies = [
 
 [[package]]
 name = "ks-curve-tracer"
-version = "0.1.6-alpha.0"
+version = "0.1.6"
 dependencies = [
  "autodiff 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "cairo-rs 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",

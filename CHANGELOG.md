@@ -1,4 +1,4 @@
-## [Unreleased] - ReleaseDate
+## [0.1.6] - 2019-02-24
 ### Changed
 * Tweak cargo release #21
 
