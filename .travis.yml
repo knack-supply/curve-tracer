@@ -32,19 +32,21 @@ before_install:
 
 script:
   - rustc --version
-  - cargo build --release --features link-with-stub
+  - cargo build --release
 
 before_deploy:
-  - mv target/release/curve-tracer target/release/curve-tracer-$TRAVIS_OS_NAME
-  - mv target/release/curve-tracer-cli target/release/curve-tracer-cli-$TRAVIS_OS_NAME
+  - cargo deb --separate-debug-symbols
+  - mv target/release/ks-curve-tracer target/release/ks-curve-tracer-$TRAVIS_OS_NAME
+  - mv target/release/ks-curve-tracer-cli target/release/ks-curve-tracer-cli-$TRAVIS_OS_NAME
 
 deploy:
   provider: releases
   api_key:
     secure: Es7DL/1mzmXYdv///gY6OhJXqxwTwW8HYmtKxIBdGrG81AQ55B0OFgFF9SCwD45muNeic90MXKQERKq7qRxVTEVloVTHnVMtOuvNdFmmLfSgeVEYNvdBFYyg5APtJ/QZoY5/d+GvBmIpTf+e18SA1JcGR9qlgQcjC19BGm/66EuLk4Rn7MfxdOR/GULCU+3jsoaY6zbm0MtRuvdxY2cz+S60eGGBRNZ9JAwykhOH31yeXK+ytP+7rwhj8cX8Mf/feaIEVUNyNiU79t7+qFNHA6kSUset8pvRmBfABQWt76V23nknbs6S9fUK/08idVLKhzq7tnWrQ1KrgFfxUXG8BjOo4UeWjw5Fp6fHGd9ntlQFylg5OuigXZPeMg8/8wPpI7/Bge7v5nbP/2/WXf2XvtCaVUcejpCc04E14fzaduXDPa8/x1c8SBEmD4l5wT9yCnY7dY6ONPQ9R9FJvuFuRj6rAtAx0+XXEhuhL/2XCb2RJ7w7NY4XYWEPEe47RY6Yt66xYM/Gs5tt0B/fvv5Lm+Z0UqVYTEOu9WX1eHqnD3UGQlrQ7b3KCXsMocFv73hf2FRvG8KlkAr8f/EEfd88SFRSPWEN7/6AS5toxG+rSuDErbGH4UPqXKfOYKD3tzTZ0ngtkgV5SynGBhNCapUtnvOqNR6QI8S6p1TveslUMdI=
   file:
-    - target/release/curve-tracer-$TRAVIS_OS_NAME
-    - target/release/curve-tracer-cli-$TRAVIS_OS_NAME
+    - target/debian/ks-curve-tracer_*.deb
+    - target/release/ks-curve-tracer-$TRAVIS_OS_NAME
+    - target/release/ks-curve-tracer-cli-$TRAVIS_OS_NAME
   on:
     repo: knack-supply/curve-tracer
     tags: true

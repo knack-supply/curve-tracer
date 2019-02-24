@@ -19,11 +19,11 @@ use relm::DrawHandler;
 use relm::{Relm, Update, Widget};
 use structopt::StructOpt;
 
-use curve_tracer::backend::RawTrace;
-use curve_tracer::model::diode::diode_model;
-use curve_tracer::model::diode::NullModel;
-use curve_tracer::model::IVModel;
-use curve_tracer::options::Opt;
+use ks_curve_tracer::backend::RawTrace;
+use ks_curve_tracer::model::diode::diode_model;
+use ks_curve_tracer::model::diode::NullModel;
+use ks_curve_tracer::model::IVModel;
+use ks_curve_tracer::options::Opt;
 
 struct Model {
     draw_handler: DrawHandler<DrawingArea>,
@@ -244,7 +244,7 @@ impl Widget for Win {
 
     // Create the widgets.
     fn view(relm: &Relm<Self>, mut model: Self::Model) -> Self {
-        Window::set_default_icon(&Pixbuf::new_from_inline(include_bytes!("../../icon256.pixbuf"), false).unwrap());
+        Window::set_default_icon(&Pixbuf::new_from_inline(include_bytes!("../../res/icon256.pixbuf"), false).unwrap());
 
         let hbox = gtk::Box::new(Horizontal, 0);
 

@@ -15,7 +15,7 @@ install:
 
 build_script:
   - rustc --version
-  - cargo build --release --features link-with-stub
+  - cargo build --release
 
 test: false
 
@@ -31,10 +31,10 @@ deploy:
     APPVEYOR_REPO_TAG: true
 
 artifacts:
-  - path: target/release/curve-tracer.exe
-    name: curve-tracer.exe
-  - path: target/release/curve-tracer-cli.exe
-    name: curve-tracer-cli.exe
+  - path: target/release/ks-curve-tracer.exe
+    name: ks-curve-tracer.exe
+  - path: target/release/ks-curve-tracer-cli.exe
+    name: ks-curve-tracer-cli.exe
 
 cache:
   - C:\msys64\var\cache\pacman\pkg

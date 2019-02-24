@@ -1,2 +1,7 @@
 /target
 **/*.rs.bk
+/PKGBUILD
+/*.pkg.tar.*
+/*.snap
+/pkg
+/.rpm

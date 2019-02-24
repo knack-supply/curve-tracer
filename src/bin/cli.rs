@@ -1,5 +1,5 @@
-use curve_tracer::model::diode::diode_model;
-use curve_tracer::options::Opt;
+use ks_curve_tracer::model::diode::diode_model;
+use ks_curve_tracer::options::Opt;
 use failure::Error;
 use structopt::StructOpt;
 

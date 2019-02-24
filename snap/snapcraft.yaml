@@ -1,0 +1,32 @@
+name: ks-curve-tracer
+version: git
+summary: "Companion app for the AD2 curve tracer"
+description: |
+  Companion app for the AD2 curve tracer, available at https://knack.supply/product/ad2ct/
+confinement: classic
+base: core18
+
+apps:
+  curve-tracer:
+    command: ks-curve-tracer
+  cli:
+    command: ks-curve-tracer-cli
+
+parts:
+  curve-tracer:
+    source: .
+    plugin: rust
+#    build-attributes: [no-system-libraries]
+    build-packages:
+      - libgtk-3-dev
+      - libcairo2-dev
+      - pkg-config
+      - clang
+    stage-packages:
+      - libgtk-3-0
+      - libcairo2
+      - libusb-1.0-0
+
+layout:
+  /usr/lib:
+    bind: $SNAP/usr/hostlib
