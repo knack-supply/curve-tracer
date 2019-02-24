@@ -3,12 +3,6 @@ matrix:
   include:
     - os: linux
       env:
-        - TARGET=armv7-unknown-linux-gnueabihf
-        - BINARY_SUFFIX=linux-armv7
-      rust: stable
-      dist: xenial
-    - os: linux
-      env:
         - TARGET=x86_64-unknown-linux-gnu
         - BINARY_SUFFIX=linux-amd64
       rust: stable
