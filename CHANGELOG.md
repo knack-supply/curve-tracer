@@ -1,4 +1,4 @@
-## [Unreleased] - ReleaseDate
+## [0.1.4] - 2019-02-24
 ### Added
 * Building .deb packages #18
 * Building .rpm (#19), arch (#20) packages
