@@ -1,9 +1,10 @@
 [package]
 name = "ks-curve-tracer"
-version = "0.1.0"
+version = "0.1.4-alpha.0"
 authors = ["Ilya Epifanov <elijah.epifanov@gmail.com>"]
 edition = "2018"
 description = "Curve tracer GUI for AD2 curve tracer"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 gtk = "^0.5.0"
@@ -42,6 +43,12 @@ path = "src/bin/gui.rs"
 [[bin]]
 name = "ks-curve-tracer-cli"
 path = "src/bin/cli.rs"
+
+[package.metadata.release]
+sign-commit = false
+upload-doc = false
+disable-publish = true
+pre-release-replacements = [ {file="CHANGELOG.md", search="Unreleased", replace="{{version}}"}, {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}"} ]
 
 [package.metadata.arch]
 pkgname = "ks-curve-tracer"

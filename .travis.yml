@@ -35,6 +35,7 @@ script:
   - cargo build --release
 
 before_deploy:
+  - cargo install cargo-deb
   - cargo deb --separate-debug-symbols
   - mv target/release/ks-curve-tracer target/release/ks-curve-tracer-$TRAVIS_OS_NAME
   - mv target/release/ks-curve-tracer-cli target/release/ks-curve-tracer-cli-$TRAVIS_OS_NAME
