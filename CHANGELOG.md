@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 * Removed armv7 builds for the time being #21
 * Triggering AWG on scope capture #1
+* Showing backtrace on errors
 
 ## [0.1.6] - 2019-02-24
 ### Changed

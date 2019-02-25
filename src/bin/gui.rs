@@ -90,7 +90,7 @@ impl Update for Win {
                         DialogFlags::MODAL,
                         MessageType::Error,
                         ButtonsType::Close,
-                        &format!("Error: {}", err),
+                        &format!("Error: {}\nBacktrace: {}", err, err.backtrace()),
                     );
 
                     error_msg.run();
