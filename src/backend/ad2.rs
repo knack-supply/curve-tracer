@@ -46,6 +46,8 @@ impl Backend for AD2 {
         let max_v = current_limit * resistor + 0.5;
 
         let out_vf = device.analog_out(0);
+        out_vf.set_idle_mode(AnalogOutIdleMode::Initial)?;
+        out_vf.set_trigger_source(TriggerSource::AnalogIn)?;
         let out_vf_carrier = out_vf.node(0);
 
         out_vf_carrier.set_function(AnalogOutFunction::Triangle {
@@ -117,6 +119,8 @@ impl Backend for AD2 {
                 in_v_shunt.fetch_samples(&mut vss, available)?;
             }
         }
+
+        out_vf.stop()?;
 
         let start_ix = (vs.len() as f64 * self.skip) as usize;
         let is = vss
