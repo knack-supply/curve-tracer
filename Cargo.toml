@@ -30,7 +30,6 @@ structopt-derive = "0.2.14"
 [build-dependencies]
 winres = "0.1.8"
 failure = "0.1.5"
-git-version = "0.2.1"
 
 [features]
 link-with-stub = ["digilent-waveforms/link-with-stub"]
