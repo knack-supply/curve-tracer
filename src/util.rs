@@ -8,7 +8,7 @@ use std::fmt::Write;
 pub struct Engineering<N: Real>(pub N);
 
 impl<N: Real + ToPrimitive> Display for Engineering<N> {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         if self.0.is_zero() {
             write!(f, "{}", self.0)
         } else {

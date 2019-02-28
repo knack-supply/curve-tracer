@@ -28,7 +28,7 @@ impl IVModel for NullModel {
 }
 
 impl Display for NullModel {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("")?;
         Ok(())
     }
@@ -54,7 +54,7 @@ impl IVModel for CurrentOffsetModel {
 }
 
 impl Display for CurrentOffsetModel {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "I<sub>OS</sub>\t{:.3}A",
@@ -103,7 +103,7 @@ impl IVModel for LogLinearShockleyModel {
 }
 
 impl Display for LogLinearShockleyModel {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.current_offset)?;
         writeln!(f, "I<sub>S</sub>\t{:.3}A", Engineering(self.is))?;
         writeln!(f, "n⋅V<sub>T</sub>\t{:.3}V", Engineering(self.n_vt))?;
@@ -155,7 +155,7 @@ impl IVModel for ShockleyModel {
 }
 
 impl Display for ShockleyModel {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.current_offset)?;
         writeln!(f, "I<sub>S</sub>\t{:.3}A", Engineering(self.is))?;
         writeln!(f, "n⋅V<sub>T</sub>\t{:.3}V", Engineering(self.n_vt))?;

@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
-extern crate structopt;
-extern crate structopt_derive;
+use structopt;
+
 #[macro_use]
 extern crate log;
 
