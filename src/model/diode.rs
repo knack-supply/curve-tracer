@@ -7,9 +7,9 @@ use nalgebra::*;
 use num_traits::float::Float;
 
 use crate::backend::RawTrace;
+use crate::model::pwc::PieceWiseConstantFunction;
 use crate::model::IVModel;
 use crate::util::Engineering;
-use crate::model::pwc::PieceWiseConstantFunction;
 
 pub struct NullModel {}
 
@@ -183,7 +183,7 @@ fn shockley(trace: &[(f64, f64)], simplified_shockley: LogLinearShockleyModel) -
     let f = |m: &[f64]| (m[0] + m[1] * ((m[3] / m[2]).exp() - 1.0));
     let f0 = |_: &[f64]| 1.0;
     let f1 = |m: &[f64]| ((m[3] / m[2]).exp() - 1.0);
-    let f2 = |m: &[f64]| - m[1] * m[3] * (m[3] / m[2]).exp() / (m[2] * m[2]);
+    let f2 = |m: &[f64]| -m[1] * m[3] * (m[3] / m[2]).exp() / (m[2] * m[2]);
 
     for _ in 0..max_iterations {
         debug!("");
@@ -205,12 +205,7 @@ fn shockley(trace: &[(f64, f64)], simplified_shockley: LogLinearShockleyModel) -
         let residuals = DVector::<f64>::from_iterator(
             trace.len(),
             trace.iter().cloned().map(|(v, i)| {
-                let params = [
-                    model[0],
-                    model[1],
-                    model[2],
-                    v,
-                ];
+                let params = [model[0], model[1], model[2], v];
                 let i_model = f(&params);
                 i - i_model
             }),
@@ -313,7 +308,10 @@ where
 }
 
 pub fn diode_model(trace: &RawTrace) -> ShockleyModel {
-    let trace = PieceWiseConstantFunction::from_points(0.0, 5.0, 5000, 1, &trace.iter().collect_vec()).iter().collect_vec();
+    let trace =
+        PieceWiseConstantFunction::from_points(0.0, 5.0, 5000, 1, &trace.iter().collect_vec())
+            .iter()
+            .collect_vec();
     shockley(
         &trace,
         log_linear_simplified_shockley(&trace, current_offset(&trace)),

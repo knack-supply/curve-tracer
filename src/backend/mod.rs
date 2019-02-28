@@ -16,8 +16,11 @@ impl RawTrace {
         RawTrace { current, voltage }
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item=(f64, f64)> + 'a {
-        self.voltage.iter().cloned().zip(self.current.iter().cloned())
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (f64, f64)> + 'a {
+        self.voltage
+            .iter()
+            .cloned()
+            .zip(self.current.iter().cloned())
     }
 }
 

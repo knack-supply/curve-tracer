@@ -1,9 +1,9 @@
 #[macro_use]
 extern crate log;
 
+use failure::Error;
 use ks_curve_tracer::model::diode::diode_model;
 use ks_curve_tracer::options::Opt;
-use failure::Error;
 use structopt::StructOpt;
 
 fn main() -> Result<(), Error> {
