@@ -9,11 +9,11 @@ A companion app for [AD2 curve tracer](https://knack.supply/product/ad2ct/)
 
 ### Linux
 
-To use a plain binary release, install the dependencies first (libgtk3, libcairo and 64-bit [Digilent Waveforms])
+To use a plain binary release, install the dependencies first (libgtk3, libcairo and 64-bit [Digilent Waveforms]).
 
 ### Windows
 
-Install GTK3 runtime first. Grab a latest version from https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases, e.g. https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases/download/2019-02-07/gtk3-runtime-3.24.4-2019-02-07-ts-win64.exe
+Install GTK3 runtime first. Grab a latest version from https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases, e.g. https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases/download/2019-02-07/gtk3-runtime-3.24.4-2019-02-07-ts-win64.exe.
 64-bit [Digilent Waveforms] has to be installed, too.
 
 ### Mac OS

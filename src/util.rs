@@ -14,6 +14,8 @@ impl<N: Real + ToPrimitive> Display for Engineering<N> {
         } else {
             let exp: i32 = (self.0.abs().log10() / N::from_i32(3).unwrap())
                 .floor()
+                .min(N::from_f64(100.0).unwrap())
+                .max(N::from_f64(-100.0).unwrap())
                 .to_i32()
                 .unwrap()
                 * 3;

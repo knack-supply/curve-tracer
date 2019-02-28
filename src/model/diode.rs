@@ -1,7 +1,5 @@
 use std::fmt::Display;
 
-use autodiff;
-use autodiff::forward_autodiff::{grad, F};
 use itertools::Itertools;
 use nalgebra::allocator::Allocator;
 use nalgebra::allocator::Reallocator;
@@ -11,10 +9,19 @@ use num_traits::float::Float;
 use crate::backend::RawTrace;
 use crate::model::IVModel;
 use crate::util::Engineering;
+use crate::model::pwc::PieceWiseConstantFunction;
 
 pub struct NullModel {}
 
 impl IVModel for NullModel {
+    fn min_v(&self) -> f64 {
+        0.0
+    }
+
+    fn max_v(&self) -> f64 {
+        0.0
+    }
+
     fn evaluate(&self, _v: f64) -> f64 {
         0.0
     }
@@ -33,6 +40,14 @@ pub struct CurrentOffsetModel {
 }
 
 impl IVModel for CurrentOffsetModel {
+    fn min_v(&self) -> f64 {
+        f64::min_value()
+    }
+
+    fn max_v(&self) -> f64 {
+        f64::max_value()
+    }
+
     fn evaluate(&self, _v: f64) -> f64 {
         self.current_offset
     }
@@ -48,10 +63,10 @@ impl Display for CurrentOffsetModel {
     }
 }
 
-fn current_offset(trace: &RawTrace) -> CurrentOffsetModel {
+fn current_offset(trace: &[(f64, f64)]) -> CurrentOffsetModel {
     let mut i_sum = 0.0;
     let mut samples = 0u32;
-    for (&v, &i) in trace.voltage.iter().zip(trace.current.iter()) {
+    for (v, i) in trace.iter().cloned() {
         if 0.0 <= v && v < 0.05 {
             i_sum += i;
             samples += 1;
@@ -74,6 +89,14 @@ pub struct LogLinearShockleyModel {
 }
 
 impl IVModel for LogLinearShockleyModel {
+    fn min_v(&self) -> f64 {
+        0.0
+    }
+
+    fn max_v(&self) -> f64 {
+        self.n_vt * ((1.0 - self.current_offset.current_offset) / self.is).ln()
+    }
+
     fn evaluate(&self, v: f64) -> f64 {
         self.current_offset.evaluate(v) + self.is * (v / self.n_vt).exp()
     }
@@ -89,14 +112,14 @@ impl Display for LogLinearShockleyModel {
 }
 
 fn log_linear_simplified_shockley(
-    trace: &RawTrace,
+    trace: &[(f64, f64)],
     current_offset: CurrentOffsetModel,
 ) -> LogLinearShockleyModel {
     let xs = MatrixMN::<f64, U2, Dynamic>::from_rows(&[
-        RowDVector::from_row_slice(&trace.voltage),
-        RowDVector::from_element(trace.voltage.len(), 1.0),
+        RowDVector::from_iterator(trace.len(), trace.iter().cloned().map(|(v, _)| v)),
+        RowDVector::from_element(trace.len(), 1.0),
     ]);
-    let mut ys = DVector::from_column_slice(&trace.current);
+    let mut ys = DVector::from_iterator(trace.len(), trace.iter().cloned().map(|(_, i)| i));
     ys.apply(|i| (i - current_offset.current_offset).max(0.00001).ln());
 
     let betas = linear_regression(xs, ys);
@@ -118,6 +141,14 @@ pub struct ShockleyModel {
 }
 
 impl IVModel for ShockleyModel {
+    fn min_v(&self) -> f64 {
+        0.0
+    }
+
+    fn max_v(&self) -> f64 {
+        self.n_vt * ((self.is + 1.0 - self.current_offset.current_offset) / self.is).ln()
+    }
+
     fn evaluate(&self, v: f64) -> f64 {
         self.current_offset.evaluate(v) + self.is * ((v / self.n_vt).exp() + 1.0)
     }
@@ -132,10 +163,12 @@ impl Display for ShockleyModel {
     }
 }
 
-fn shockley(trace: &RawTrace, simplified_shockley: LogLinearShockleyModel) -> ShockleyModel {
-    let max_relative_change = 0.000_1;
-    let max_absolute_change = 0.000_000_1;
+fn shockley(trace: &[(f64, f64)], simplified_shockley: LogLinearShockleyModel) -> ShockleyModel {
+    let max_absolute_change = 0.000_000_000_1;
     let max_iterations = 1000;
+
+    let mut shift_cut = 1.0;
+    let mut old_total_error = f64::max_value();
 
     let mut model = [
         simplified_shockley.current_offset.current_offset,
@@ -143,58 +176,80 @@ fn shockley(trace: &RawTrace, simplified_shockley: LogLinearShockleyModel) -> Sh
         simplified_shockley.n_vt,
     ];
 
-    let iv = trace
-        .current
-        .iter()
-        .cloned()
-        .zip(trace.voltage.iter().cloned())
-        .collect_vec();
+    let mut old_model = model.clone();
 
-    let f = |m: &[F]| (m[0] + m[1] * ((m[3] / m[2]).exp() - F::cst(1.0)));
+    debug!("model: {:?}", model);
+
+    let f = |m: &[f64]| (m[0] + m[1] * ((m[3] / m[2]).exp() - 1.0));
+    let f0 = |_: &[f64]| 1.0;
+    let f1 = |m: &[f64]| ((m[3] / m[2]).exp() - 1.0);
+    let f2 = |m: &[f64]| - m[1] * m[3] * (m[3] / m[2]).exp() / (m[2] * m[2]);
 
     for _ in 0..max_iterations {
-        let jacobian_rows: Vec<RowVector3<f64>> = iv
+        debug!("");
+        debug!("shift cut: {}", shift_cut);
+        let jacobian_rows: Vec<RowVector3<f64>> = trace
             .iter()
             .cloned()
-            .map(|(_, v)| {
+            .map(|(v, _)| {
                 let params = [model[0], model[1], model[2], v];
-                let g = grad(f, &params);
-                RowVector3::new(g[0], g[1], g[2])
+                RowVector3::new(f0(&params), f1(&params), f2(&params))
             })
             .collect_vec();
         let jacobian: MatrixMN<f64, Dynamic, U3> = MatrixMN::from_rows(jacobian_rows.as_slice());
 
+        debug!("J: {:?}", jacobian_rows.iter().take(2).collect_vec());
+
         let svd = SVD::new(jacobian, true, true);
 
         let residuals = DVector::<f64>::from_iterator(
-            iv.len(),
-            iv.iter().cloned().map(|(i, v)| {
+            trace.len(),
+            trace.iter().cloned().map(|(v, i)| {
                 let params = [
-                    F::var(model[0]),
-                    F::var(model[1]),
-                    F::var(model[2]),
-                    F::cst(v),
+                    model[0],
+                    model[1],
+                    model[2],
+                    v,
                 ];
-                let i_model = f(&params).value();
+                let i_model = f(&params);
                 i - i_model
             }),
         );
 
+        let total_error = residuals.map(|r| r.powi(2)).sum().sqrt();
+        debug!("total error: {}", total_error);
+
         let v = svd.v_t.unwrap().transpose();
         let sigma = Matrix::from_diagonal(&svd.singular_values.map(|e| 1.0 / e));
         let u_t = svd.u.unwrap().transpose();
-        let correction = v * sigma * (u_t * residuals);
+        let correction = v * sigma * (u_t * residuals) * shift_cut;
 
-        let relative_change = (correction[0] / model[0]).abs()
-            + (correction[1] / model[1]).abs()
-            + (correction[2] / model[2]).abs();
+        if total_error > old_total_error {
+            debug!("rolling back");
+
+            model.clone_from_slice(&old_model);
+
+            debug!("model: {:?}", model);
+
+            shift_cut = shift_cut / 10.0;
+            continue;
+        }
+        old_model.clone_from_slice(&model);
+
+        old_total_error = total_error;
+
         let absolute_change = correction.map(f64::abs).sum();
 
         model[0] += correction[0];
-        model[1] += correction[1];
-        model[2] += correction[2];
+        model[1] = (model[1] + correction[1]).max(0.000_000_000_000_000_1);
+        model[2] = (model[2] + correction[2]).max(0.000_1);
 
-        if relative_change <= max_relative_change && absolute_change <= max_absolute_change {
+        shift_cut = (shift_cut * 2.0).min(1.0);
+
+        debug!("absolute change: {}", absolute_change);
+        debug!("model: {:?}", model);
+
+        if total_error < 0.000_01 || absolute_change <= max_absolute_change || shift_cut < 0.000_1 {
             break;
         }
     }
@@ -258,6 +313,7 @@ where
 }
 
 pub fn diode_model(trace: &RawTrace) -> ShockleyModel {
+    let trace = PieceWiseConstantFunction::from_points(0.0, 5.0, 5000, 1, &trace.iter().collect_vec()).iter().collect_vec();
     shockley(
         &trace,
         log_linear_simplified_shockley(&trace, current_offset(&trace)),

@@ -3,6 +3,8 @@ extern crate gtk;
 extern crate relm;
 #[macro_use]
 extern crate relm_derive;
+#[macro_use]
+extern crate log;
 
 use std::f64::consts::PI;
 
@@ -76,7 +78,12 @@ impl Update for Win {
                 Ok(trace) => {
                     self.model.raw_trace = trace;
 
+                    info!("Got the trace");
+
                     let model = diode_model(&self.model.raw_trace);
+
+                    info!("Fit model to the trace");
+
                     self.model.device_model = Box::new(model);
                     self.widgets
                         .model_text
@@ -115,7 +122,7 @@ impl Update for Win {
                 cr.translate(10.0, 10.0);
 
                 let max_i = 0.05;
-                let max_v = 0.5;
+                let max_v = 1.0;
 
                 let i_factor = (height - 20.0) / max_i;
                 let v_factor = (width - 20.0) / max_v;
@@ -213,7 +220,9 @@ impl Update for Win {
 
                 cr.set_source_rgba(1.0, 0.0, 0.0, 0.8);
 
-                for (ix, v) in linspace(0.0, max_v, 101).enumerate() {
+                for (ix, v) in linspace(self.model.device_model.min_v().max(0.0),
+                                        self.model.device_model.max_v().min(max_v),
+                                        101).enumerate() {
                     if ix == 0 {
                         cr.move_to(
                             v * v_factor,
@@ -323,8 +332,10 @@ impl Widget for Win {
     }
 }
 
-fn main() {
+fn main() -> Result<(), failure::Error> {
     let opt = Opt::from_args();
+    opt.initialize_logging()?;
 
     Win::run(ModelParam { opt }).unwrap();
+    Ok(())
 }

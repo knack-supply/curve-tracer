@@ -26,6 +26,8 @@ num-traits = "0.2.6"
 autodiff = "0.1.5"
 structopt = "0.2.14"
 structopt-derive = "0.2.14"
+simplelog = "0.5.3"
+log = "0.4.6"
 
 [build-dependencies]
 winres = "0.1.8"

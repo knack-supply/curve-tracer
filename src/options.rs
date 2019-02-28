@@ -4,6 +4,8 @@ use structopt::StructOpt;
 use crate::backend::Backend;
 use crate::backend::Csv;
 use crate::backend::AD2;
+use log::LevelFilter;
+use simplelog::Config;
 
 #[derive(StructOpt, Debug)]
 enum BackendOption {
@@ -29,5 +31,10 @@ impl Opt {
             BackendOption::DWF => Box::new(AD2::new()),
             BackendOption::Csv { file } => Box::new(Csv::new(file.to_string_lossy().into_owned())),
         }
+    }
+
+    pub fn initialize_logging(&self) -> Result<(), failure::Error> {
+        simplelog::TermLogger::init(LevelFilter::Debug, Config::default())?;
+        Ok(())
     }
 }
