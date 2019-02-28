@@ -1,24 +1,25 @@
 extern crate gtk;
 #[macro_use]
+extern crate log;
+#[macro_use]
 extern crate relm;
 #[macro_use]
 extern crate relm_derive;
-#[macro_use]
-extern crate log;
 
 use std::f64::consts::PI;
 
 use cairo::enums::{FontSlant, FontWeight};
 use gdk_pixbuf::Pixbuf;
-use gtk::DrawingArea;
-use gtk::Orientation::{Horizontal, Vertical};
 use gtk::{
     Button, ButtonExt, ButtonsType, ContainerExt, DialogExt, DialogFlags, GtkWindowExt, Inhibit,
     Label, LabelExt, MessageType, WidgetExt, Window, WindowType,
 };
+use gtk::DrawingArea;
+use gtk::Orientation::{Horizontal, Vertical};
+use gtk::Orientation;
 use itertools_num::linspace;
-use relm::DrawHandler;
 use relm::{Relm, Update, Widget};
+use relm::DrawHandler;
 use structopt::StructOpt;
 
 use ks_curve_tracer::backend::RawTrace;
@@ -26,23 +27,31 @@ use ks_curve_tracer::model::diode::diode_model;
 use ks_curve_tracer::model::diode::NullModel;
 use ks_curve_tracer::model::IVModel;
 use ks_curve_tracer::options::Opt;
+use gtk::ToggleButtonExt;
+use gtk::ButtonBoxStyle;
+use gtk::ButtonBoxExt;
+use gtk::BoxExt;
 
 struct Model {
     draw_handler: DrawHandler<DrawingArea>,
     raw_trace: RawTrace,
     device_model: Box<dyn IVModel>,
     opt: Opt,
+    v_zoom: f64,
+    i_zoom: f64,
 }
 
 struct ModelParam {
     opt: Opt,
 }
 
-#[derive(Msg)]
+#[derive(Msg, Clone, Copy)]
 enum Msg {
     Trace,
     UpdateDrawBuffer,
     Quit,
+    VZoom(f64),
+    IZoom(f64),
 }
 
 #[derive(Clone)]
@@ -69,6 +78,8 @@ impl Update for Win {
             raw_trace: RawTrace::default(),
             device_model: Box::new(NullModel {}),
             opt: param.opt,
+            v_zoom: 1.0,
+            i_zoom: 0.05,
         }
     }
 
@@ -121,8 +132,8 @@ impl Update for Win {
 
                 cr.translate(10.0, 10.0);
 
-                let max_i = 0.05;
-                let max_v = 1.0;
+                let max_i = self.model.i_zoom;
+                let max_v = self.model.v_zoom;
 
                 let i_factor = (height - 20.0) / max_i;
                 let v_factor = (width - 20.0) / max_v;
@@ -170,16 +181,16 @@ impl Update for Win {
                     .current
                     .iter()
                     .zip(self.model.raw_trace.voltage.iter())
-                {
-                    cr.arc(
-                        v * v_factor,
-                        height - 20.0 - i * i_factor,
-                        1.0,
-                        0.0,
-                        PI * 2.0,
-                    );
-                    cr.fill();
-                }
+                    {
+                        cr.arc(
+                            v * v_factor,
+                            height - 20.0 - i * i_factor,
+                            1.0,
+                            0.0,
+                            PI * 2.0,
+                        );
+                        cr.fill();
+                    }
 
                 cr.set_source_rgba(0.0, 0.0, 0.0, 1.0);
 
@@ -201,7 +212,7 @@ impl Update for Win {
                     if ix > 0 {
                         cr.select_font_face("Monospace", FontSlant::Normal, FontWeight::Normal);
                         cr.set_font_size(13.0);
-                        let text = format!("{:.3}V", v_gridline);
+                        let text = format!("{:.2}V", v_gridline);
                         let extents = cr.text_extents(&text);
                         if ix == 10 {
                             cr.move_to(
@@ -237,6 +248,14 @@ impl Update for Win {
                 }
                 cr.stroke();
             }
+            Msg::VZoom(z) => {
+                self.model.v_zoom = z;
+                self.widgets.drawing_area.queue_resize();
+            }
+            Msg::IZoom(z) => {
+                self.model.i_zoom = z;
+                self.widgets.drawing_area.queue_resize();
+            }
             Msg::Quit => gtk::main_quit(),
         }
     }
@@ -263,11 +282,10 @@ impl Widget for Win {
         right_pane.set_margin_bottom(8);
         right_pane.set_margin_start(4);
         right_pane.set_margin_end(4);
+        right_pane.set_spacing(8);
 
         let help_text = gtk::Label::new("");
         help_text.set_xalign(0.0);
-        help_text.set_margin_top(8);
-        help_text.set_margin_bottom(8);
         help_text.set_markup("\
         This is a very early version of the software.\n\
         Only diode measurement is included\n\
@@ -283,6 +301,53 @@ impl Widget for Win {
         4) Press \"Trace\" button below");
 
         right_pane.add(&help_text);
+
+        fn radio_button_box(relm: &Relm<Win>, options: impl Iterator<Item=(String, Msg)>, initial_option: usize) -> Option<gtk::ButtonBox> {
+            let mut options = options.enumerate();
+            let (ix, (label, msg)) = options.next()?;
+            let button_box = gtk::ButtonBox::new(Orientation::Horizontal);
+            button_box.set_layout(ButtonBoxStyle::Expand);
+
+            fn setup_button(relm: &Relm<Win>, msg: Msg, button: &gtk::RadioButton, v_zoom_buttons: &gtk::ButtonBox) {
+                button.set_mode(false);
+                connect!(relm, button, connect_clicked(_), msg);
+                v_zoom_buttons.add(button);
+            }
+
+            let first_button = gtk::RadioButton::new_with_label(&label);
+            setup_button(&relm, msg, &first_button, &button_box);
+            if ix == initial_option {
+                first_button.set_active(true);
+            }
+
+            for (ix, (label, msg)) in options {
+                let zoom_button = gtk::RadioButton::new_with_label_from_widget(&first_button, &label);
+                setup_button(&relm, msg, &zoom_button, &button_box);
+                if ix == initial_option {
+                    zoom_button.set_active(true);
+                }
+            }
+
+            Some(button_box)
+        }
+
+        {
+            let v_zoom_options = [0.5, 1.0, 2.0, 5.0].into_iter().map(|&v| {
+                (format!("{:0.1}V", v), Msg::VZoom(v))
+            });
+            if let Some(v_zoom_buttons) = radio_button_box(&relm, v_zoom_options, 1) {
+                right_pane.add(&v_zoom_buttons);
+            }
+        }
+
+        {
+            let i_zoom_options = [0.005, 0.01, 0.02, 0.05].into_iter().map(|&i| {
+                (format!("{:0.0}mA", i * 1000.0), Msg::IZoom(i))
+            });
+            if let Some(i_zoom_buttons) = radio_button_box(&relm, i_zoom_options, 3) {
+                right_pane.add(&i_zoom_buttons);
+            }
+        }
 
         let trace_button = Button::new_with_label("Trace");
         right_pane.add(&trace_button);
