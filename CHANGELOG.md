@@ -19,10 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Engineering notation NaN and Inf handling
 
 ## [0.1.7] - 2019-02-25
+### Added
+* Showing backtrace on errors
+### Changed
+* Triggering AWG on scope capture #1
 ### Removed
 * Removed armv7 builds for the time being #21
-* Triggering AWG on scope capture #1
-* Showing backtrace on errors
 
 ## [0.1.6] - 2019-02-24
 ### Changed
