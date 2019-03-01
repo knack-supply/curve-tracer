@@ -164,8 +164,12 @@ impl Display for ShockleyModel {
 }
 
 fn shockley(trace: &[(f64, f64)], simplified_shockley: LogLinearShockleyModel) -> ShockleyModel {
-    let max_absolute_change = 0.000_000_000_1;
-    let max_iterations = 1000;
+    let max_absolute_change = 0.000_000_000_000_000_1;
+    let max_iterations = 50;
+    let max_total_error = 0.000_01;
+    let min_error_improvement = 0.001;
+    let min_shift_cut = 0.000_1;
+    let min_iterations = 5;
 
     let mut shift_cut = 1.0;
     let mut old_total_error = f64::max_value();
@@ -185,7 +189,7 @@ fn shockley(trace: &[(f64, f64)], simplified_shockley: LogLinearShockleyModel) -
     let f1 = |m: &[f64]| ((m[3] / m[2]).exp() - 1.0);
     let f2 = |m: &[f64]| -m[1] * m[3] * (m[3] / m[2]).exp() / (m[2] * m[2]);
 
-    for _ in 0..max_iterations {
+    for iteration in 0..max_iterations {
         debug!("");
         debug!("shift cut: {}", shift_cut);
         let jacobian_rows: Vec<RowVector3<f64>> = trace
@@ -231,6 +235,7 @@ fn shockley(trace: &[(f64, f64)], simplified_shockley: LogLinearShockleyModel) -
         }
         old_model.clone_from_slice(&model);
 
+        let error_improvement = ((total_error - old_total_error) / old_total_error).abs();
         old_total_error = total_error;
 
         let absolute_change = correction.map(f64::abs).sum();
@@ -242,9 +247,18 @@ fn shockley(trace: &[(f64, f64)], simplified_shockley: LogLinearShockleyModel) -
         shift_cut = (shift_cut * 2.0).min(1.0);
 
         debug!("absolute change: {}", absolute_change);
+        debug!("error improvement: {}", error_improvement);
         debug!("model: {:?}", model);
 
-        if total_error < 0.000_01 || absolute_change <= max_absolute_change || shift_cut < 0.000_1 {
+        if iteration < min_iterations {
+            continue;
+        }
+
+        if total_error < max_total_error
+            || absolute_change <= max_absolute_change
+            || shift_cut < min_shift_cut
+            || error_improvement < min_error_improvement
+        {
             break;
         }
     }
@@ -256,19 +270,6 @@ fn shockley(trace: &[(f64, f64)], simplified_shockley: LogLinearShockleyModel) -
         is: model[1],
         n_vt: model[2],
     }
-}
-
-#[allow(dead_code)]
-fn linear_regression_naive<N: Real, D: DimName>(
-    x: MatrixMN<N, D, Dynamic>,
-    y: DVector<N>,
-) -> DVector<N>
-where
-    DefaultAllocator: Allocator<N, Dynamic, Dynamic> + Allocator<N, D, Dynamic>,
-{
-    let a = &x.transpose() * &x;
-    let i = a.pseudo_inverse(N::from_f64(0.000_001).unwrap()).unwrap();
-    i * x.transpose() * y
 }
 
 fn linear_regression<N: Real, D: DimName>(
