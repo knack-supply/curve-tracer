@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Benchmarks
 * Some sample diode data
+* Save and Load buttons in GUI
 ### Changed
 * Better logging in the curve fitting module
 ### Fixed

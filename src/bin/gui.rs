@@ -22,7 +22,7 @@ use relm::DrawHandler;
 use relm::{Relm, Update, Widget};
 use structopt::StructOpt;
 
-use gtk::BoxExt;
+use gtk::FileChooserExt;
 use gtk::ButtonBoxExt;
 use gtk::ButtonBoxStyle;
 use gtk::ToggleButtonExt;
@@ -31,8 +31,12 @@ use ks_curve_tracer::model::diode::diode_model;
 use ks_curve_tracer::model::diode::NullModel;
 use ks_curve_tracer::model::IVModel;
 use ks_curve_tracer::options::Opt;
+use gtk::FileChooserAction;
+use gtk::ResponseType;
+use ks_curve_tracer::backend::Backend;
 
 struct Model {
+    relm: Relm<Win>,
     draw_handler: DrawHandler<DrawingArea>,
     raw_trace: RawTrace,
     device_model: Box<dyn IVModel>,
@@ -48,6 +52,10 @@ struct ModelParam {
 #[derive(Msg, Clone, Copy)]
 enum Msg {
     Trace,
+    DiscardModel,
+    FitModel,
+    LoadTrace,
+    SaveTrace,
     UpdateDrawBuffer,
     Quit,
     VZoom(f64),
@@ -72,8 +80,9 @@ impl Update for Win {
     type ModelParam = ModelParam;
     type Msg = Msg;
 
-    fn model(_: &Relm<Self>, param: ModelParam) -> Model {
+    fn model(relm: &Relm<Self>, param: ModelParam) -> Model {
         Model {
+            relm: relm.clone(),
             draw_handler: DrawHandler::new().expect("draw handler"),
             raw_trace: RawTrace::default(),
             device_model: Box::new(NullModel {}),
@@ -88,19 +97,10 @@ impl Update for Win {
             Msg::Trace => match self.model.opt.device().trace() {
                 Ok(trace) => {
                     self.model.raw_trace = trace;
-
                     info!("Got the trace");
 
-                    let model = diode_model(&self.model.raw_trace);
-
-                    info!("Fit model to the trace");
-
-                    self.model.device_model = Box::new(model);
-                    self.widgets
-                        .model_text
-                        .set_markup(&format!("{}", &self.model.device_model));
-
-                    self.widgets.drawing_area.queue_resize();
+                    self.model.relm.stream().emit(Msg::DiscardModel);
+                    self.model.relm.stream().emit(Msg::FitModel);
                 }
                 Err(err) => {
                     let error_msg = gtk::MessageDialog::new(
@@ -114,6 +114,26 @@ impl Update for Win {
                     error_msg.run();
                     error_msg.close();
                 }
+            },
+            Msg::DiscardModel => {
+                self.model.device_model = Box::new(NullModel {});
+                self.widgets
+                    .model_text
+                    .set_markup(&format!("{}", &self.model.device_model));
+
+                self.widgets.drawing_area.queue_resize();
+            },
+            Msg::FitModel => {
+                let model = diode_model(&self.model.raw_trace);
+
+                info!("Fit model to the trace");
+
+                self.model.device_model = Box::new(model);
+                self.widgets
+                    .model_text
+                    .set_markup(&format!("{}", &self.model.device_model));
+
+                self.widgets.drawing_area.queue_resize();
             },
             Msg::UpdateDrawBuffer => {
                 let cr = self.model.draw_handler.get_context();
@@ -260,6 +280,53 @@ impl Update for Win {
                 self.model.i_zoom = z;
                 self.widgets.drawing_area.queue_resize();
             }
+            Msg::SaveTrace => {
+                let dialog = gtk::FileChooserDialog::with_buttons(
+                    Some("Save trace"), Some(&self.widgets.window), FileChooserAction::Save,
+                    &[("_Cancel", ResponseType::Cancel), ("_Save", ResponseType::Accept)]
+                );
+                dialog.set_do_overwrite_confirmation(true);
+
+                if dialog.run() == gtk::ResponseType::Accept.into() {
+                    if let Some(filename) = dialog.get_filename() {
+                        let _ = self.model.raw_trace.save_as_csv(filename);
+                    }
+                }
+                dialog.close();
+            }
+            Msg::LoadTrace => {
+                let dialog = gtk::FileChooserDialog::with_buttons(
+                    Some("Load trace"), Some(&self.widgets.window), FileChooserAction::Open,
+                    &[("_Cancel", ResponseType::Cancel), ("_Load", ResponseType::Accept)]
+                );
+                dialog.set_do_overwrite_confirmation(true);
+
+                if dialog.run() == gtk::ResponseType::Accept.into() {
+                    if let Some(filename) = dialog.get_filename() {
+                        match ks_curve_tracer::backend::Csv::new(filename).trace() {
+                            Ok(trace) => {
+                                self.model.raw_trace = trace;
+                                info!("Got the trace");
+                                self.model.relm.stream().emit(Msg::DiscardModel);
+                                self.model.relm.stream().emit(Msg::FitModel);
+                            },
+                            Err(err) => {
+                                let error_msg = gtk::MessageDialog::new(
+                                    Some(&self.widgets.window),
+                                    DialogFlags::MODAL,
+                                    MessageType::Error,
+                                    ButtonsType::Close,
+                                    &format!("Error: {}\nBacktrace: {}", err, err.backtrace()),
+                                );
+
+                                error_msg.run();
+                                error_msg.close();
+                            }
+                        };
+                    }
+                }
+                dialog.close();
+            }
             Msg::Quit => gtk::main_quit(),
         }
     }
@@ -282,13 +349,13 @@ impl Widget for Win {
 
         let hbox = gtk::Box::new(Horizontal, 0);
 
-        let right_pane = gtk::Box::new(Vertical, 0);
+        let right_pane = gtk::Box::new(Vertical, 8);
         right_pane.set_size_request(300, 500);
         right_pane.set_margin_top(8);
         right_pane.set_margin_bottom(8);
         right_pane.set_margin_start(4);
         right_pane.set_margin_end(4);
-        right_pane.set_spacing(8);
+        right_pane.set_hexpand(false);
 
         let help_text = gtk::Label::new("");
         help_text.set_xalign(0.0);
@@ -365,8 +432,19 @@ impl Widget for Win {
             }
         }
 
+        let action_box = gtk::Box::new(Orientation::Horizontal, 8);
+
         let trace_button = Button::new_with_label("Trace");
-        right_pane.add(&trace_button);
+        trace_button.set_hexpand(true);
+        action_box.add(&trace_button);
+
+        let save_button = Button::new_from_icon_name("document-save", gtk::IconSize::Button.into());
+        action_box.add(&save_button);
+
+        let load_button = Button::new_from_icon_name("document-open", gtk::IconSize::Button.into());
+        action_box.add(&load_button);
+
+        right_pane.add(&action_box);
 
         let model_text = gtk::Label::new("");
         model_text.set_xalign(0.0);
@@ -394,6 +472,8 @@ impl Widget for Win {
             Msg::UpdateDrawBuffer
         );
         connect!(relm, trace_button, connect_clicked(_), Msg::Trace);
+        connect!(relm, save_button, connect_clicked(_), Msg::SaveTrace);
+        connect!(relm, load_button, connect_clicked(_), Msg::LoadTrace);
         connect!(
             relm,
             window,
