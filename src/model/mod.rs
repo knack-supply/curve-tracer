@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+pub mod curvefit;
 pub mod diode;
 pub mod pwc;
 
