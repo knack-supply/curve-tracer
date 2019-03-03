@@ -1,7 +1,11 @@
 mod ad2;
 mod csv;
 
+pub use self::ad2::AD2;
+pub use self::csv::Csv;
+
 use failure::Error;
+use std::path::Path;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -22,6 +26,18 @@ impl RawTrace {
             .cloned()
             .zip(self.current.iter().cloned())
     }
+
+    pub fn save_as_csv<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let mut out = ::csv::WriterBuilder::new()
+            .delimiter(b'\t')
+            .from_path(path)?;
+
+        out.write_record(&["v", "i"])?;
+        for (v, i) in self.iter() {
+            out.write_record(&[v.to_string(), i.to_string()])?;
+        }
+        Ok(())
+    }
 }
 
 impl Default for RawTrace {
@@ -33,6 +49,3 @@ impl Default for RawTrace {
 pub trait Backend {
     fn trace(&self) -> Result<RawTrace>;
 }
-
-pub use self::ad2::AD2;
-pub use self::csv::Csv;

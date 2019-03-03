@@ -4,9 +4,10 @@ use crate::backend::Backend;
 use crate::backend::RawTrace;
 use crate::backend::Result;
 use csv::ReaderBuilder;
+use std::path::PathBuf;
 
 pub struct Csv {
-    filename: String,
+    filename: PathBuf,
     skip: f64,
 }
 
@@ -17,10 +18,10 @@ struct Record {
 }
 
 impl Csv {
-    pub fn new(filename: String) -> Self {
+    pub fn new<P: Into<PathBuf>>(filename: P) -> Self {
         Csv {
-            filename,
-            skip: 0.5,
+            filename: filename.into(),
+            skip: 0.0,
         }
     }
 }

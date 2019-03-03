@@ -34,6 +34,9 @@ measure_time = "0.6.0"
 winres = "0.1.8"
 failure = "0.1.5"
 
+[dev-dependencies]
+criterion = "0.2"
+
 [features]
 link-with-stub = ["digilent-waveforms/link-with-stub"]
 default = ["link-with-stub", "relm/unstable", "relm-attributes/unstable", "relm-derive/unstable", "gtk/v3_16"]
@@ -45,6 +48,10 @@ path = "src/bin/gui.rs"
 [[bin]]
 name = "ks-curve-tracer-cli"
 path = "src/bin/cli.rs"
+
+[[bench]]
+name = "benchmark"
+harness = false
 
 [package.metadata.release]
 sign-commit = true
