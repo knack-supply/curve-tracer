@@ -28,6 +28,7 @@ structopt = "0.2.14"
 structopt-derive = "0.2.14"
 simplelog = "0.5.3"
 log = "0.4.6"
+measure_time = "0.6.0"
 
 [build-dependencies]
 winres = "0.1.8"

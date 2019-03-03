@@ -1,9 +1,9 @@
 #[macro_use]
-extern crate serde_derive;
-use structopt;
-
+extern crate measure_time;
 #[macro_use]
-extern crate log;
+extern crate serde_derive;
+
+use structopt;
 
 pub mod backend;
 pub mod model;

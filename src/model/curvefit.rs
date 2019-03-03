@@ -34,22 +34,29 @@ pub trait DiffFn<N: Real, D: Dim + DimName> {
     fn params(&self) -> &RowVectorN<N, D>
     where
         DefaultAllocator: Allocator<N, U1, D>;
+
     fn mut_params(&mut self) -> &mut RowVectorN<N, D>
     where
         DefaultAllocator: Allocator<N, U1, D>;
+
     fn sanitize_params(&mut self);
+
     fn value(&self, x: N) -> N
     where
         DefaultAllocator: Allocator<N, U1, D>;
+
     fn values(&self, xs: &DVector<N>) -> DVector<N>
     where
         DefaultAllocator: Allocator<N, U1, D>;
+
     fn grad(&self, x: N) -> RowVectorN<N, D>
     where
         DefaultAllocator: Allocator<N, U1, D>;
+
     fn deriv(&self, x: N) -> N
     where
         DefaultAllocator: Allocator<N, U1, D>;
+
     fn jacobian(&self, xs: &DVector<N>) -> MatrixMN<N, Dynamic, D>
     where
         DefaultAllocator: Allocator<N, U1, D> + Allocator<N, Dynamic, D>;
@@ -68,39 +75,53 @@ pub fn gauss_newton<N: Real, D: Dim + DimName, F>(
         + Allocator<N, Dynamic, Buffer = VecStorage<N, Dynamic, U1>>,
     VecStorage<N, Dynamic, U1>: nalgebra::storage::Storage<N, Dynamic>,
 {
+    debug_time!("gauss_newton");
     let mut shift_cut = N::from_f64(1.0).unwrap();
     let mut old_total_error = N::max_value();
 
     let mut old_model = model.clone();
 
-    debug!("model: {:?}", model);
-
     for iteration in 0..params.max_iterations {
-        debug!("");
-        debug!("shift cut: {}", shift_cut);
+        trace_time!("gauss_newton iteration {}", iteration);
+        trace!("");
+        trace!("model: {:?}", model);
+        trace!("shift cut: {}", shift_cut);
 
-        let jacobian: MatrixMN<N, Dynamic, D> = model.jacobian(&xs);
+        let jacobian: MatrixMN<N, Dynamic, D> = {
+            trace_time!("jacobian");
+            model.jacobian(&xs)
+        };
 
-        let svd: SVD<N, Dynamic, D> = SVD::new(jacobian, true, true);
+        let svd: SVD<N, Dynamic, D> = {
+            trace_time!("SVD");
+            SVD::new(jacobian, true, true)
+        };
 
-        let values: DVector<N> = model.values(&xs);
+        let residuals: DVector<N> = {
+            trace_time!("residuals");
+            let values: DVector<N> = model.values(&xs);
+            ys - values
+        };
 
-        let residuals: DVector<N> = ys - values;
+        let total_error: N = {
+            trace_time!("total error");
+            residuals.norm()
+        };
+        trace!("total error: {}", total_error);
 
-        let total_error: N = residuals.norm();
-        debug!("total error: {}", total_error);
+        let correction: RowVectorN<N, D> = {
+            trace_time!("correction");
+            let v = svd.v_t.unwrap().transpose();
+            let sigma = Matrix::from_diagonal(&svd.singular_values.map(N::recip));
+            let u_t = svd.u.unwrap().transpose();
 
-        let v = svd.v_t.unwrap().transpose();
-        let sigma = Matrix::from_diagonal(&svd.singular_values.map(N::recip));
-        let u_t = svd.u.unwrap().transpose();
-        let correction: RowVectorN<N, D> = (v * sigma * (u_t * residuals) * shift_cut).transpose();
+            (v * sigma * (u_t * residuals) * shift_cut).transpose()
+        };
 
         if total_error > old_total_error {
-            debug!("rolling back");
+            trace!("rolling back");
 
             model.mut_params().copy_from(old_model.params());
-
-            debug!("model: {:?}", model);
 
             shift_cut *= params.shift_cut_refining_step;
             old_total_error = N::max_value();
@@ -121,9 +142,8 @@ pub fn gauss_newton<N: Real, D: Dim + DimName, F>(
 
         shift_cut = (shift_cut * params.shift_cut_speed_up).min(N::one());
 
-        debug!("absolute change: {}", absolute_change);
-        debug!("error improvement: {}", error_improvement);
-        debug!("model: {:?}", model);
+        trace!("absolute change: {}", absolute_change);
+        trace!("error improvement: {}", error_improvement);
 
         if iteration < params.min_iterations {
             continue;
@@ -152,6 +172,7 @@ where
         + Allocator<N, D, U1>
         + Reallocator<N, Dynamic, Dynamic, U1, D>,
 {
+    debug_time!("linear_regression");
     let x = {
         let s = x.shape();
         x.resize(s.0, s.1, N::zero())
@@ -161,15 +182,26 @@ where
         y.resize(s.0, s.1, N::zero())
     };
 
-    let x_svd = SVD::new(x.transpose(), true, true);
+    let x_svd = {
+        trace_time!("SVD");
+        SVD::new(x.transpose(), true, true)
+    };
     let u = x_svd.u.unwrap();
     let s = x_svd.singular_values;
     let v_t = x_svd.v_t.unwrap();
 
-    let alpha = u.transpose() * y;
-    let s_shape = s.shape();
-    let sinv = alpha.zip_map(&s.resize(s_shape.0, s_shape.1, N::zero()), |a, s| a / s);
+    let alpha = {
+        trace_time!("alpha");
+        u.transpose() * y
+    };
 
+    let s_shape = s.shape();
+    let sinv = {
+        trace_time!("S^-1");
+        alpha.zip_map(&s.resize(s_shape.0, s_shape.1, N::zero()), |a, s| a / s)
+    };
+
+    trace_time!("linear_regression (V' * S^-1)'");
     (v_t.transpose() * sinv)
         .transpose()
         .fixed_resize::<U1, D>(N::zero())
