@@ -19,12 +19,12 @@ impl<N: Real> Default for GaussNewtonParams<N> {
     fn default() -> Self {
         Self {
             min_iterations: 5,
-            max_iterations: 50,
+            max_iterations: 500,
             max_absolute_change: N::from_f64(0.000_000_000_000_000_1).unwrap(),
             max_total_error: N::from_f64(0.000_000_000_000_1).unwrap(),
             max_error_improvement: N::from_f64(0.000_001).unwrap(),
-            min_shift_cut: N::from_f64(0.000_001).unwrap(),
-            shift_cut_refining_step: N::from_f64(0.1).unwrap(),
+            min_shift_cut: N::from_f64(0.000_000_000_001).unwrap(),
+            shift_cut_refining_step: N::from_f64(0.2).unwrap(),
             shift_cut_speed_up: N::from_f64(2.0).unwrap(),
         }
     }
@@ -150,9 +150,9 @@ pub fn gauss_newton<N: Real, D: Dim + DimName, F>(
         }
 
         if total_error < params.max_total_error
-            || absolute_change <= params.max_absolute_change
+            || absolute_change <= (params.max_absolute_change * shift_cut)
             || shift_cut < params.min_shift_cut
-            || error_improvement < params.max_error_improvement
+            || error_improvement <= (params.max_error_improvement * shift_cut)
         {
             break;
         }

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Some sample diode data
 ### Changed
 * Better logging in the curve fitting module
+### Fixed
+* 1N4728A model fitting
 
 ## [0.1.10] - 2019-03-03
 ### Changed
