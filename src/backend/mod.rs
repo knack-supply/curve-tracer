@@ -4,11 +4,18 @@ mod csv;
 pub use self::ad2::AD2;
 pub use self::csv::Csv;
 
-use failure::Error;
-use std::path::Path;
+use noisy_float::prelude::*;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::str::FromStr;
 
-type Result<T> = std::result::Result<T, Error>;
+#[derive(Clone)]
+pub struct BiasedTrace {
+    pub bias: R64,
+    pub trace: RawTrace,
+}
 
+#[derive(Clone)]
 pub struct RawTrace {
     pub current: Vec<f64>,
     pub voltage: Vec<f64>,
@@ -26,18 +33,6 @@ impl RawTrace {
             .cloned()
             .zip(self.current.iter().cloned())
     }
-
-    pub fn save_as_csv<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        let mut out = ::csv::WriterBuilder::new()
-            .delimiter(b'\t')
-            .from_path(path)?;
-
-        out.write_record(&["v", "i"])?;
-        for (v, i) in self.iter() {
-            out.write_record(&[v.to_string(), i.to_string()])?;
-        }
-        Ok(())
-    }
 }
 
 impl Default for RawTrace {
@@ -47,5 +42,36 @@ impl Default for RawTrace {
 }
 
 pub trait Backend {
-    fn trace(&self) -> Result<RawTrace>;
+    fn trace_2(&self, device_type: DeviceType) -> crate::Result<RawTrace>;
+    fn trace_3(&self, device_type: DeviceType) -> crate::Result<Vec<BiasedTrace>>;
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum DeviceType {
+    PN,
+    NPN,
+    PNP,
+}
+
+impl Display for DeviceType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeviceType::PN => f.write_str("PN"),
+            DeviceType::NPN => f.write_str("NPN"),
+            DeviceType::PNP => f.write_str("PNP"),
+        }
+    }
+}
+
+impl FromStr for DeviceType {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "PN" => Ok(DeviceType::PN),
+            "NPN" => Ok(DeviceType::NPN),
+            "PNP" => Ok(DeviceType::PNP),
+            v => Err(failure::err_msg(format!("Invalid device type: {}", v))),
+        }
+    }
 }

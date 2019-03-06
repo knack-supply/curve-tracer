@@ -7,6 +7,7 @@ use criterion::Criterion;
 
 use ks_curve_tracer::backend::Backend;
 use ks_curve_tracer::backend::Csv;
+use ks_curve_tracer::backend::DeviceType;
 use ks_curve_tracer::model::diode::diode_model;
 
 fn criterion_config() -> Criterion {
@@ -20,7 +21,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         "Shockley model",
         move |b, trace_name| {
             let trace = Csv::new(format!("res/{}.csv", trace_name))
-                .trace()
+                .trace_2(DeviceType::PN)
                 .expect("Can't read the test trace");
             b.iter(|| diode_model(&trace))
         },

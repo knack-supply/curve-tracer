@@ -13,29 +13,6 @@ use crate::model::pwc::PieceWiseConstantFunction;
 use crate::model::IVModel;
 use crate::util::Engineering;
 
-pub struct NullModel {}
-
-impl IVModel for NullModel {
-    fn min_v(&self) -> f64 {
-        0.0
-    }
-
-    fn max_v(&self) -> f64 {
-        0.0
-    }
-
-    fn evaluate(&self, _v: f64) -> f64 {
-        0.0
-    }
-}
-
-impl Display for NullModel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("")?;
-        Ok(())
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct CurrentOffsetModel {
     pub current_offset: f64,
