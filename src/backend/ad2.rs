@@ -82,7 +82,7 @@ impl AD2 {
         let mut total_corrupted = 0;
 
         loop {
-            let status = input.get_status().unwrap();
+            let status = input.get_status()?;
             if status == AnalogAcquisitionStatus::Config
                 || status == AnalogAcquisitionStatus::Prefill
                 || status == AnalogAcquisitionStatus::Armed
@@ -94,11 +94,11 @@ impl AD2 {
                 break;
             }
 
-            let left = input.get_samples_left().unwrap();
+            let left = input.get_samples_left()?;
             if left < 0 {
                 break;
             }
-            let (available, lost, corrupted) = input.get_record_status().unwrap();
+            let (available, lost, corrupted) = input.get_record_status()?;
             total_lost += lost;
             total_corrupted += corrupted;
 

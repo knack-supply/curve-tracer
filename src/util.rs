@@ -12,10 +12,10 @@ impl<N: Real + ToPrimitive> Display for Engineering<N> {
         if self.0.is_zero() {
             write!(f, "{}", self.0)
         } else {
-            let exp: i32 = (self.0.abs().log10() / N::from_i32(3).unwrap())
+            let exp: i32 = (self.0.abs().log10() / N::from_i32(3).unwrap_or_else(N::zero))
                 .floor()
-                .min(N::from_f64(100.0).unwrap())
-                .max(N::from_f64(-100.0).unwrap())
+                .min(N::from_f64(100.0).unwrap_or_else(N::zero))
+                .max(N::from_f64(-100.0).unwrap_or_else(N::zero))
                 .to_i32()
                 .unwrap()
                 * 3;

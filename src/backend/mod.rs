@@ -1,8 +1,6 @@
 mod ad2;
-mod csv;
 
 pub use self::ad2::AD2;
-pub use self::csv::Csv;
 
 use noisy_float::prelude::*;
 use std::fmt::Display;
@@ -17,8 +15,8 @@ pub struct BiasedTrace {
 
 #[derive(Clone)]
 pub struct RawTrace {
-    pub current: Vec<f64>,
-    pub voltage: Vec<f64>,
+    current: Vec<f64>,
+    voltage: Vec<f64>,
 }
 
 impl RawTrace {
@@ -32,12 +30,6 @@ impl RawTrace {
             .iter()
             .cloned()
             .zip(self.current.iter().cloned())
-    }
-}
-
-impl Default for RawTrace {
-    fn default() -> Self {
-        RawTrace::new(Vec::new(), Vec::new())
     }
 }
 

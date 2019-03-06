@@ -1,3 +1,5 @@
+#![feature(try_blocks)]
+
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -5,42 +7,57 @@ extern crate relm;
 #[macro_use]
 extern crate relm_derive;
 
-use std::sync::Arc;
-
-use cairo::enums::{FontSlant, FontWeight};
+use cairo::enums::FontSlant;
+use cairo::enums::FontWeight;
 use gdk_pixbuf::Pixbuf;
 use gtk;
+use gtk::Button;
 use gtk::ButtonBoxExt;
 use gtk::ButtonBoxStyle;
+use gtk::ButtonExt;
+use gtk::ButtonsType;
+use gtk::ContainerExt;
+use gtk::DialogExt;
+use gtk::DialogFlags;
 use gtk::DrawingArea;
 use gtk::FileChooserAction;
 use gtk::FileChooserExt;
+use gtk::GtkWindowExt;
+use gtk::Inhibit;
+use gtk::Label;
+use gtk::LabelExt;
+use gtk::MessageType;
 use gtk::Orientation;
-use gtk::Orientation::{Horizontal, Vertical};
+use gtk::Orientation::Horizontal;
+use gtk::Orientation::Vertical;
 use gtk::ResponseType;
 use gtk::ToggleButtonExt;
-use gtk::{
-    Button, ButtonExt, ButtonsType, ContainerExt, DialogExt, DialogFlags, GtkWindowExt, Inhibit,
-    Label, LabelExt, MessageType, WidgetExt, Window, WindowType,
-};
+use gtk::WidgetExt;
+use gtk::Window;
+use gtk::WindowType;
 use itertools_num::linspace;
 use relm::DrawHandler;
-use relm::{Relm, Update, Widget};
+use relm::Relm;
+use relm::Update;
+use relm::Widget;
 use structopt::StructOpt;
 
-use ks_curve_tracer::backend::Backend;
+use ks_curve_tracer::backend::BiasedTrace;
 use ks_curve_tracer::backend::DeviceType;
 use ks_curve_tracer::gui::DevicePlot;
-use ks_curve_tracer::gui::DrawableTrace;
-use ks_curve_tracer::model::diode::diode_model;
+use ks_curve_tracer::gui::GuiTrace;
 use ks_curve_tracer::options::GuiOpt;
 use ks_curve_tracer::options::Opt;
-use ks_curve_tracer::Trace;
+use ks_curve_tracer::trace::file::ImportableTrace;
+use ks_curve_tracer::NullTrace;
+use ks_curve_tracer::Result;
+use ks_curve_tracer::ThreeTerminalTrace;
+use ks_curve_tracer::TwoTerminalTrace;
 
 struct Model {
     relm: Relm<Win>,
     draw_handler: DrawHandler<DrawingArea>,
-    trace: Trace,
+    trace: Box<dyn GuiTrace>,
     opt: GuiOpt,
     v_zoom: f64,
     i_zoom: f64,
@@ -79,6 +96,35 @@ struct Win {
     widgets: Widgets,
 }
 
+impl Win {
+    fn error_box(&self, msg: &str) {
+        let error_msg = gtk::MessageDialog::new(
+            Some(&self.widgets.window),
+            DialogFlags::MODAL,
+            MessageType::Error,
+            ButtonsType::Close,
+            msg,
+        );
+
+        error_msg.run();
+        error_msg.close();
+    }
+
+    fn error_box_error(&self, err: &failure::Error) {
+        self.error_box(&format!("Error: {}\nBacktrace: {}", err, err.backtrace()));
+    }
+
+    fn handle_error<T>(&self, res: Result<T>) -> Option<T> {
+        match res {
+            Ok(r) => Some(r),
+            Err(e) => {
+                self.error_box_error(&e);
+                None
+            }
+        }
+    }
+}
+
 impl Update for Win {
     type Model = Model;
     type ModelParam = ModelParam;
@@ -88,7 +134,7 @@ impl Update for Win {
         Model {
             relm: relm.clone(),
             draw_handler: DrawHandler::new().expect("draw handler"),
-            trace: Trace::Null,
+            trace: Box::new(NullTrace {}),
             opt: param.opt,
             v_zoom: 1.0,
             i_zoom: 0.05,
@@ -104,7 +150,7 @@ impl Update for Win {
                 match self.model.device_type {
                     DeviceType::PN => match device.trace_2(self.model.device_type) {
                         Ok(trace) => {
-                            self.model.trace = Trace::Unbiased { trace, model: None };
+                            self.model.trace = Box::new(TwoTerminalTrace::from(trace));
                             info!("Got the trace");
 
                             self.widgets.model_text.set_markup("");
@@ -113,59 +159,39 @@ impl Update for Win {
                             self.model.relm.stream().emit(Msg::FitModel);
                         }
                         Err(err) => {
-                            let error_msg = gtk::MessageDialog::new(
-                                Some(&self.widgets.window),
-                                DialogFlags::MODAL,
-                                MessageType::Error,
-                                ButtonsType::Close,
-                                &format!("Error: {}\nBacktrace: {}", err, err.backtrace()),
-                            );
-
-                            error_msg.run();
-                            error_msg.close();
+                            self.error_box_error(&err);
                         }
                     },
                     DeviceType::NPN | DeviceType::PNP => {
                         match device.trace_3(self.model.device_type) {
                             Ok(traces) => {
-                                self.model.trace = Trace::Biased { traces };
+                                self.model.trace = Box::new(ThreeTerminalTrace::from(
+                                    traces
+                                        .into_iter()
+                                        .map(|BiasedTrace { bias, trace }| (bias, trace)),
+                                ));
                                 info!("Got the trace");
 
                                 self.widgets.model_text.set_markup("");
-
                                 self.widgets.drawing_area.queue_resize();
 
                                 self.model.relm.stream().emit(Msg::FitModel);
                             }
                             Err(err) => {
-                                let error_msg = gtk::MessageDialog::new(
-                                    Some(&self.widgets.window),
-                                    DialogFlags::MODAL,
-                                    MessageType::Error,
-                                    ButtonsType::Close,
-                                    &format!("Error: {}\nBacktrace: {}", err, err.backtrace()),
-                                );
-
-                                error_msg.run();
-                                error_msg.close();
+                                self.error_box_error(&err);
                             }
                         }
                     }
                 }
             }
-            Msg::FitModel => match &self.model.trace {
-                Trace::Unbiased { trace, model: None } => {
-                    let model = diode_model(&trace);
-                    info!("Fit model to the trace");
-                    self.widgets.model_text.set_markup(&format!("{}", &model));
-                    self.model.trace = Trace::Unbiased {
-                        trace: trace.clone(),
-                        model: Some(Arc::new(model)),
-                    };
-                    self.widgets.drawing_area.queue_resize();
-                }
-                _ => {}
-            },
+            Msg::FitModel => {
+                self.model.trace.fill_model();
+                info!("Fit model to the trace");
+                self.widgets
+                    .model_text
+                    .set_markup(&self.model.trace.model_report());
+                self.widgets.drawing_area.queue_resize();
+            }
             Msg::UpdateDrawBuffer => {
                 let cr = self.model.draw_handler.get_context();
                 let allocation = self.widgets.drawing_area.get_allocation();
@@ -299,7 +325,7 @@ impl Update for Win {
 
                 if dialog.run() == gtk::ResponseType::Accept.into() {
                     if let Some(filename) = dialog.get_filename() {
-                        let _ = self.model.trace.save_as_csv(filename);
+                        let _ = self.model.trace.save_as_csv(&filename);
                     }
                 }
                 dialog.close();
@@ -318,69 +344,21 @@ impl Update for Win {
 
                 if dialog.run() == gtk::ResponseType::Accept.into() {
                     if let Some(filename) = dialog.get_filename() {
-                        let reader = ks_curve_tracer::backend::Csv::new(filename);
-                        match self.model.device_type {
-                            DeviceType::PN => {
-                                match reader.trace_2(self.model.device_type) {
-                                    Ok(trace) => {
-                                        self.model.trace = Trace::Unbiased {
-                                            trace: trace,
-                                            model: None,
-                                        };
-                                        info!("Got the trace");
+                        let res = try {
+                            self.model.trace = match self.model.device_type {
+                                DeviceType::PN => Box::new(TwoTerminalTrace::from_csv(filename)?),
+                                DeviceType::NPN | DeviceType::PNP => {
+                                    Box::new(ThreeTerminalTrace::from_csv(filename)?)
+                                }
+                            };
+                            info!("Got the trace");
 
-                                        self.widgets.model_text.set_markup("");
-                                        self.widgets.drawing_area.queue_resize();
+                            self.widgets.model_text.set_markup("");
+                            self.widgets.drawing_area.queue_resize();
 
-                                        self.model.relm.stream().emit(Msg::FitModel);
-                                    }
-                                    Err(err) => {
-                                        let error_msg = gtk::MessageDialog::new(
-                                            Some(&self.widgets.window),
-                                            DialogFlags::MODAL,
-                                            MessageType::Error,
-                                            ButtonsType::Close,
-                                            &format!(
-                                                "Error: {}\nBacktrace: {}",
-                                                err,
-                                                err.backtrace()
-                                            ),
-                                        );
-
-                                        error_msg.run();
-                                        error_msg.close();
-                                    }
-                                };
-                            }
-                            DeviceType::NPN | DeviceType::PNP => {
-                                match reader.trace_3(self.model.device_type) {
-                                    Ok(traces) => {
-                                        self.model.trace = Trace::Biased { traces };
-
-                                        self.widgets.model_text.set_markup("");
-                                        self.widgets.drawing_area.queue_resize();
-
-                                        info!("Got the trace");
-                                    }
-                                    Err(err) => {
-                                        let error_msg = gtk::MessageDialog::new(
-                                            Some(&self.widgets.window),
-                                            DialogFlags::MODAL,
-                                            MessageType::Error,
-                                            ButtonsType::Close,
-                                            &format!(
-                                                "Error: {}\nBacktrace: {}",
-                                                err,
-                                                err.backtrace()
-                                            ),
-                                        );
-
-                                        error_msg.run();
-                                        error_msg.close();
-                                    }
-                                };
-                            }
-                        }
+                            self.model.relm.stream().emit(Msg::FitModel);
+                        };
+                        let _ = self.handle_error(res);
                     }
                 }
                 dialog.close();
@@ -474,7 +452,7 @@ impl Widget for Win {
 
         {
             let options = [DeviceType::PN, DeviceType::NPN, DeviceType::PNP]
-                .into_iter()
+                .iter()
                 .map(|&d| (format!("{}", d), Msg::DeviceType(d)));
             if let Some(buttons) = radio_button_box(&relm, options, 0) {
                 right_pane.add(&buttons);
@@ -488,7 +466,7 @@ impl Widget for Win {
 
         {
             let options = [0.5, 1.0, 2.0, 5.0]
-                .into_iter()
+                .iter()
                 .map(|&v| (format!("{:0.1}V", v), Msg::VZoom(v)));
             if let Some(buttons) = radio_button_box(&relm, options, 1) {
                 right_pane.add(&buttons);
@@ -497,7 +475,7 @@ impl Widget for Win {
 
         {
             let options = [0.005, 0.01, 0.02, 0.05]
-                .into_iter()
+                .iter()
                 .map(|&i| (format!("{:0.0}mA", i * 1000.0), Msg::IZoom(i)));
             if let Some(buttons) = radio_button_box(&relm, options, 3) {
                 right_pane.add(&buttons);
@@ -572,7 +550,7 @@ impl Widget for Win {
     }
 }
 
-fn main() -> Result<(), failure::Error> {
+fn main() -> Result<()> {
     let opt = GuiOpt::from_args();
     opt.initialize_logging()?;
 

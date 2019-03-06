@@ -1,10 +1,16 @@
-use crate::backend::BiasedTrace;
-use crate::backend::DeviceType;
-use crate::Trace;
+use std::f64::consts::PI;
+use std::sync::Arc;
+
 use cairo::Context;
 use itertools::Itertools;
 use itertools_num::linspace;
-use std::f64::consts::PI;
+
+use crate::backend::DeviceType;
+use crate::model::diode::diode_model;
+use crate::trace::file::ExportableTrace;
+use crate::NullTrace;
+use crate::ThreeTerminalTrace;
+use crate::TwoTerminalTrace;
 
 const COLORS: [(u8, u8, u8); 8] = [
     (57, 106, 177),
@@ -22,84 +28,119 @@ lazy_static! {
         .iter()
         .map(|(r, g, b)| format!("#{:02x}{:02x}{:02x}", r, g, b))
         .collect_vec();
+    static ref COLORS_F64: Vec<(f64, f64, f64)> = COLORS
+        .iter()
+        .cloned()
+        .map(|(r, g, b)| (
+            f64::from(r) / 255.0,
+            f64::from(g) / 255.0,
+            f64::from(b) / 255.0
+        ))
+        .collect_vec();
 }
 
-pub trait DrawableTrace {
+pub trait GuiTrace: DrawableTrace + ExportableTrace {}
+
+impl GuiTrace for NullTrace {}
+
+impl GuiTrace for TwoTerminalTrace {}
+
+impl GuiTrace for ThreeTerminalTrace {}
+
+pub trait TraceWithModel {
+    fn fill_model(&mut self);
+    fn model_report(&self) -> String;
+}
+
+pub trait DrawableTrace: TraceWithModel {
     fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64);
     fn draw_model(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64);
 }
 
-impl DrawableTrace for Trace {
-    fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
-        match self {
-            Trace::Null => {}
-            Trace::Unbiased { trace, model: _ } => {
-                cr.set_source_rgba(0.0, 0.0, 0.0, 0.05);
-                for (v, i) in trace.iter() {
-                    cr.arc(
-                        v * v_factor,
-                        height - 20.0 - i * i_factor,
-                        1.0,
-                        0.0,
-                        PI * 2.0,
-                    );
-                    cr.fill();
-                }
-            }
-            Trace::Biased { traces } => {
-                let colors = [
-                    (57, 106, 177),
-                    (218, 124, 48),
-                    (62, 150, 81),
-                    (204, 37, 41),
-                    (83, 81, 84),
-                    (107, 76, 154),
-                    (146, 36, 40),
-                    (148, 139, 61),
-                ]
-                .iter()
-                .cloned()
-                .map(|(r, g, b)| (r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0));
+impl TraceWithModel for NullTrace {
+    fn fill_model(&mut self) {}
+    fn model_report(&self) -> String {
+        String::new()
+    }
+}
 
-                for (BiasedTrace { bias: _, trace }, color) in traces.iter().zip(colors) {
-                    cr.set_source_rgba(color.0, color.1, color.2, 0.05);
-                    for (v, i) in trace.iter() {
-                        cr.arc(
-                            v * v_factor,
-                            height - 20.0 - i * i_factor,
-                            1.0,
-                            0.0,
-                            PI * 2.0,
-                        );
-                        cr.fill();
-                    }
-                }
-            }
+impl DrawableTrace for NullTrace {
+    fn draw(&self, _: &Context, _: f64, _: f64, _: f64) {}
+    fn draw_model(&self, _: &Context, _: f64, _: f64, _: f64) {}
+}
+
+impl TraceWithModel for TwoTerminalTrace {
+    fn fill_model(&mut self) {
+        if self.model.is_none() {
+            self.model = Some(Arc::new(diode_model(&self.trace)))
+        }
+    }
+
+    fn model_report(&self) -> String {
+        self.model
+            .as_ref()
+            .map(std::string::ToString::to_string)
+            .unwrap_or_else(String::new)
+    }
+}
+
+impl DrawableTrace for TwoTerminalTrace {
+    fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.05);
+        for (v, i) in self.trace.iter() {
+            cr.arc(
+                v * v_factor,
+                height - 20.0 - i * i_factor,
+                1.0,
+                0.0,
+                PI * 2.0,
+            );
+            cr.fill();
         }
     }
 
     fn draw_model(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
-        match self {
-            Trace::Unbiased {
-                trace: _,
-                model: Some(model),
-            } => {
-                cr.set_source_rgba(1.0, 0.0, 0.0, 0.8);
+        if let Some(model) = &self.model {
+            cr.set_source_rgba(1.0, 0.0, 0.0, 0.8);
 
-                for (ix, v) in
-                    linspace(model.min_v().max(0.0), model.max_v().min(5.0), 101).enumerate()
-                {
-                    if ix == 0 {
-                        cr.move_to(v * v_factor, height - 20.0 - i_factor * model.evaluate(v));
-                    } else {
-                        cr.line_to(v * v_factor, height - 20.0 - i_factor * model.evaluate(v));
-                    }
+            for (ix, v) in linspace(model.min_v().max(0.0), model.max_v().min(5.0), 101).enumerate()
+            {
+                if ix == 0 {
+                    cr.move_to(v * v_factor, height - 20.0 - i_factor * model.evaluate(v));
+                } else {
+                    cr.line_to(v * v_factor, height - 20.0 - i_factor * model.evaluate(v));
                 }
-                cr.stroke();
             }
-            _ => {}
+            cr.stroke();
         }
     }
+}
+
+impl TraceWithModel for ThreeTerminalTrace {
+    fn fill_model(&mut self) {}
+    fn model_report(&self) -> String {
+        String::new()
+    }
+}
+
+impl DrawableTrace for ThreeTerminalTrace {
+    fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
+        for ((_, trace), color) in self.traces.iter().zip(COLORS_F64.iter()) {
+            cr.set_source_rgba(color.0, color.1, color.2, 0.05);
+            for (v, i) in trace.trace.iter() {
+                cr.arc(
+                    v * v_factor,
+                    height - 20.0 - i * i_factor,
+                    1.0,
+                    0.0,
+                    PI * 2.0,
+                );
+                cr.fill();
+            }
+        }
+    }
+
+    fn draw_model(&self, _: &Context, _: f64, _: f64, _: f64) {}
 }
 
 pub trait DevicePlot {

@@ -5,59 +5,65 @@ extern crate measure_time;
 #[macro_use]
 extern crate serde_derive;
 
-use std::path::Path;
 use std::sync::Arc;
 
 use structopt;
 
-use crate::backend::BiasedTrace;
 use crate::backend::RawTrace;
 use crate::model::IVModel;
+use noisy_float::types::R64;
+use std::collections::BTreeMap;
 
 pub mod backend;
 pub mod gui;
 pub mod model;
 pub mod options;
+pub mod trace;
 pub mod util;
 
 pub type Result<T> = std::result::Result<T, failure::Error>;
 
-#[derive(Clone)]
-pub enum Trace {
-    Null,
-    Unbiased {
-        trace: RawTrace,
-        model: Option<Arc<dyn IVModel>>,
-    },
-    Biased {
-        traces: Vec<BiasedTrace>,
-    },
+#[derive(Copy, Clone)]
+pub struct NullTrace {}
+
+pub enum TwoTerminalDevice {
+    Diode,
 }
 
-impl Trace {
-    pub fn save_as_csv<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        let mut out = ::csv::WriterBuilder::new()
-            .delimiter(b'\t')
-            .from_path(path)?;
+#[derive(Clone)]
+pub struct TwoTerminalTrace {
+    trace: RawTrace,
+    model: Option<Arc<dyn IVModel>>,
+}
 
-        match self {
-            Trace::Unbiased { trace, model: _ } => {
-                out.write_record(&["v", "i"])?;
-                for (v, i) in trace.iter() {
-                    out.write_record(&[v.to_string(), i.to_string()])?;
-                }
-            }
-            Trace::Biased { traces } => {
-                out.write_record(&["v", "i", "bias"])?;
-                for BiasedTrace { bias, trace } in traces {
-                    let bias_str = bias.to_string();
-                    for (v, i) in trace.iter() {
-                        out.write_record(&[&v.to_string(), &i.to_string(), &bias_str])?;
-                    }
-                }
-            }
-            _ => {}
+impl From<RawTrace> for TwoTerminalTrace {
+    fn from(trace: RawTrace) -> Self {
+        TwoTerminalTrace { trace, model: None }
+    }
+}
+
+pub enum ThreeTerminalDevice {
+    NPN,
+    PNP,
+}
+
+#[derive(Clone)]
+pub struct ThreeTerminalTrace {
+    traces: BTreeMap<R64, TwoTerminalTrace>,
+}
+
+impl<B, T, I> From<I> for ThreeTerminalTrace
+where
+    B: Into<R64>,
+    T: Into<TwoTerminalTrace>,
+    I: IntoIterator<Item = (B, T)> + Sized,
+{
+    fn from(i: I) -> Self {
+        ThreeTerminalTrace {
+            traces: i
+                .into_iter()
+                .map(|(bias, traces)| (bias.into(), traces.into()))
+                .collect(),
         }
-        Ok(())
     }
 }

@@ -3,12 +3,11 @@ extern crate criterion;
 
 use std::time::Duration;
 
-use criterion::Criterion;
+use criterion::{black_box, BatchSize, Criterion};
 
-use ks_curve_tracer::backend::Backend;
-use ks_curve_tracer::backend::Csv;
-use ks_curve_tracer::backend::DeviceType;
-use ks_curve_tracer::model::diode::diode_model;
+use ks_curve_tracer::gui::TraceWithModel;
+use ks_curve_tracer::trace::file::ImportableTrace;
+use ks_curve_tracer::TwoTerminalTrace;
 
 fn criterion_config() -> Criterion {
     Criterion::default()
@@ -20,10 +19,16 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function_over_inputs(
         "Shockley model",
         move |b, trace_name| {
-            let trace = Csv::new(format!("res/{}.csv", trace_name))
-                .trace_2(DeviceType::PN)
+            let trace = TwoTerminalTrace::from_csv(format!("res/{}.csv", trace_name))
                 .expect("Can't read the test trace");
-            b.iter(|| diode_model(&trace))
+            b.iter_batched_ref(
+                || trace.clone(),
+                |trace| {
+                    trace.fill_model();
+                    black_box(trace.model_report());
+                },
+                BatchSize::LargeInput,
+            )
         },
         &[
             "1N3064", "1N4148", "1N4728A", "1N5817", "1N5711", "1N914B-1", "1N914B-2", "1N914B-3",

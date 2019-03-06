@@ -44,6 +44,7 @@ impl PieceWiseConstantFunction {
         pwc.resize(buckets, f64::nan());
 
         let span = max - min;
+        #[allow(clippy::needless_range_loop)]
         for b in 0..buckets {
             let start = min + span * (b as f64 / buckets as f64);
             let end = min + span * ((b + 1) as f64 / buckets as f64);

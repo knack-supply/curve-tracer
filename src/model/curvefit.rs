@@ -76,7 +76,7 @@ pub fn gauss_newton<N: Real, D: Dim + DimName, F>(
     VecStorage<N, Dynamic, U1>: nalgebra::storage::Storage<N, Dynamic>,
 {
     debug_time!("gauss_newton");
-    let mut shift_cut = N::from_f64(1.0).unwrap();
+    let mut shift_cut = N::one();
     let mut old_total_error = N::max_value();
 
     let mut old_model = model.clone();

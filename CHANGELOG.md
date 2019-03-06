@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - ReleaseDate
+### Added
+* Reading and writing `*.csv.gz` files. For now you'd have to manually specify the `.gz` extension in the file save dialog.
+### Changed
+* Refactored the hierarchy of traces and models
+### Fixed
+* Removed many `.unwrap()` calls
+
 ## [0.2.0] - 2019-03-06
 ### Added
 * Tracing BJTs #3
