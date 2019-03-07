@@ -9,16 +9,25 @@ A companion app for [AD2 curve tracer](https://knack.supply/product/ad2ct/)
 
 ### Linux
 
-To use a plain binary release, install the dependencies first (libgtk3, libcairo and 64-bit [Digilent Waveforms]).
+`.deb`'s are available on [release downloads page].
+
+To use a plain binary release, install the dependencies first (libgtk3, libcairo and 64-bit [Digilent Waveforms]). 
+Then download and run `ks-curve-tracer-linux-amd64` binary from [release downloads page].
 
 ### Windows
 
 Install GTK3 runtime first. Grab a latest version from https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases, e.g. https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases/download/2019-02-07/gtk3-runtime-3.24.4-2019-02-07-ts-win64.exe.
 64-bit [Digilent Waveforms] has to be installed, too.
 
+Download and run a `ks-curve-tracer.exe` from [release downloads page].
+
 ### Mac OS
 
-TBD
+TBD, not tested yet.
+
+`brew install gtk+3 cairo atk`
+
+Download and run a `ks-curve-tracer-macos` from [release downloads page].
 
 ## License
 
@@ -36,3 +45,4 @@ for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 additional terms or conditions.
 
 [Digilent Waveforms]: https://reference.digilentinc.com/reference/software/waveforms/waveforms-3/start
+[release downloads page]: https://github.com/knack-supply/curve-tracer/releases
