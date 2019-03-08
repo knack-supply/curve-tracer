@@ -13,6 +13,8 @@ use crate::backend::RawTrace;
 use crate::model::IVModel;
 use noisy_float::types::R64;
 use std::collections::BTreeMap;
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
 pub mod backend;
 pub mod gui;
@@ -26,8 +28,53 @@ pub type Result<T> = std::result::Result<T, failure::Error>;
 #[derive(Copy, Clone)]
 pub struct NullTrace {}
 
-pub enum TwoTerminalDevice {
+#[derive(Copy, Clone)]
+pub enum DeviceType {
+    TwoTerminal(TwoTerminalDeviceType),
+    ThreeTerminal(ThreeTerminalDeviceType),
+}
+
+impl Display for DeviceType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeviceType::TwoTerminal(device) => device.fmt(f),
+            DeviceType::ThreeTerminal(device) => device.fmt(f),
+        }
+    }
+}
+
+impl FromStr for DeviceType {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        TwoTerminalDeviceType::from_str(s)
+            .map(DeviceType::TwoTerminal)
+            .or_else(|()| ThreeTerminalDeviceType::from_str(s).map(DeviceType::ThreeTerminal))
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum TwoTerminalDeviceType {
     Diode,
+}
+
+impl Display for TwoTerminalDeviceType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TwoTerminalDeviceType::Diode => f.write_str("PN"),
+        }
+    }
+}
+
+impl FromStr for TwoTerminalDeviceType {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "PN" => Ok(TwoTerminalDeviceType::Diode),
+            _ => Err(()),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -42,9 +89,37 @@ impl From<RawTrace> for TwoTerminalTrace {
     }
 }
 
-pub enum ThreeTerminalDevice {
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ThreeTerminalDeviceType {
     NPN,
     PNP,
+    NFET,
+    PFET,
+}
+
+impl Display for ThreeTerminalDeviceType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ThreeTerminalDeviceType::NPN => f.write_str("NPN"),
+            ThreeTerminalDeviceType::PNP => f.write_str("PNP"),
+            ThreeTerminalDeviceType::NFET => f.write_str("NFET"),
+            ThreeTerminalDeviceType::PFET => f.write_str("PFET"),
+        }
+    }
+}
+
+impl FromStr for ThreeTerminalDeviceType {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "NPN" => Ok(ThreeTerminalDeviceType::NPN),
+            "PNP" => Ok(ThreeTerminalDeviceType::PNP),
+            "NFET" => Ok(ThreeTerminalDeviceType::NFET),
+            "PFET" => Ok(ThreeTerminalDeviceType::PFET),
+            _ => Err(()),
+        }
+    }
 }
 
 #[derive(Clone)]

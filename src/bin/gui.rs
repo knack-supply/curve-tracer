@@ -43,16 +43,16 @@ use relm::Widget;
 use structopt::StructOpt;
 
 use ks_curve_tracer::backend::BiasedTrace;
-use ks_curve_tracer::backend::DeviceType;
 use ks_curve_tracer::gui::DevicePlot;
 use ks_curve_tracer::gui::GuiTrace;
 use ks_curve_tracer::options::GuiOpt;
 use ks_curve_tracer::options::Opt;
 use ks_curve_tracer::trace::file::ImportableTrace;
-use ks_curve_tracer::NullTrace;
+use ks_curve_tracer::DeviceType;
 use ks_curve_tracer::Result;
 use ks_curve_tracer::ThreeTerminalTrace;
 use ks_curve_tracer::TwoTerminalTrace;
+use ks_curve_tracer::{NullTrace, ThreeTerminalDeviceType, TwoTerminalDeviceType};
 
 struct Model {
     relm: Relm<Win>,
@@ -68,7 +68,7 @@ struct ModelParam {
     opt: GuiOpt,
 }
 
-#[derive(Msg, Clone, Copy)]
+#[derive(Msg, Clone)]
 enum Msg {
     Trace,
     FitModel,
@@ -138,7 +138,7 @@ impl Update for Win {
             opt: param.opt,
             v_zoom: 1.0,
             i_zoom: 0.05,
-            device_type: DeviceType::PN,
+            device_type: DeviceType::TwoTerminal(TwoTerminalDeviceType::Diode),
         }
     }
 
@@ -148,7 +148,7 @@ impl Update for Win {
                 let device = self.model.opt.device().unwrap();
 
                 match self.model.device_type {
-                    DeviceType::PN => match device.trace_2(self.model.device_type) {
+                    DeviceType::TwoTerminal(device_type) => match device.trace_2(device_type) {
                         Ok(trace) => {
                             self.model.trace = Box::new(TwoTerminalTrace::from(trace));
                             info!("Got the trace");
@@ -162,26 +162,24 @@ impl Update for Win {
                             self.error_box_error(&err);
                         }
                     },
-                    DeviceType::NPN | DeviceType::PNP => {
-                        match device.trace_3(self.model.device_type) {
-                            Ok(traces) => {
-                                self.model.trace = Box::new(ThreeTerminalTrace::from(
-                                    traces
-                                        .into_iter()
-                                        .map(|BiasedTrace { bias, trace }| (bias, trace)),
-                                ));
-                                info!("Got the trace");
+                    DeviceType::ThreeTerminal(device_type) => match device.trace_3(device_type) {
+                        Ok(traces) => {
+                            self.model.trace = Box::new(ThreeTerminalTrace::from(
+                                traces
+                                    .into_iter()
+                                    .map(|BiasedTrace { bias, trace }| (bias, trace)),
+                            ));
+                            info!("Got the trace");
 
-                                self.widgets.model_text.set_markup("");
-                                self.widgets.drawing_area.queue_resize();
+                            self.widgets.model_text.set_markup("");
+                            self.widgets.drawing_area.queue_resize();
 
-                                self.model.relm.stream().emit(Msg::FitModel);
-                            }
-                            Err(err) => {
-                                self.error_box_error(&err);
-                            }
+                            self.model.relm.stream().emit(Msg::FitModel);
                         }
-                    }
+                        Err(err) => {
+                            self.error_box_error(&err);
+                        }
+                    },
                 }
             }
             Msg::FitModel => {
@@ -346,8 +344,10 @@ impl Update for Win {
                     if let Some(filename) = dialog.get_filename() {
                         let res = try {
                             self.model.trace = match self.model.device_type {
-                                DeviceType::PN => Box::new(TwoTerminalTrace::from_csv(filename)?),
-                                DeviceType::NPN | DeviceType::PNP => {
+                                DeviceType::TwoTerminal(_) => {
+                                    Box::new(TwoTerminalTrace::from_csv(filename)?)
+                                }
+                                DeviceType::ThreeTerminal(_) => {
                                     Box::new(ThreeTerminalTrace::from_csv(filename)?)
                                 }
                             };
@@ -428,7 +428,7 @@ impl Widget for Win {
                 v_zoom_buttons: &gtk::ButtonBox,
             ) {
                 button.set_mode(false);
-                connect!(relm, button, connect_clicked(_), msg);
+                connect!(relm, button, connect_clicked(_), msg.clone());
                 v_zoom_buttons.add(button);
             }
 
@@ -451,9 +451,15 @@ impl Widget for Win {
         }
 
         {
-            let options = [DeviceType::PN, DeviceType::NPN, DeviceType::PNP]
-                .iter()
-                .map(|&d| (format!("{}", d), Msg::DeviceType(d)));
+            let options = [
+                DeviceType::TwoTerminal(TwoTerminalDeviceType::Diode),
+                DeviceType::ThreeTerminal(ThreeTerminalDeviceType::NPN),
+                DeviceType::ThreeTerminal(ThreeTerminalDeviceType::PNP),
+                DeviceType::ThreeTerminal(ThreeTerminalDeviceType::NFET),
+                DeviceType::ThreeTerminal(ThreeTerminalDeviceType::PFET),
+            ]
+            .iter()
+            .map(|&d| (format!("{}", d), Msg::DeviceType(d)));
             if let Some(buttons) = radio_button_box(&relm, options, 0) {
                 right_pane.add(&buttons);
             }

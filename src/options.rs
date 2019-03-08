@@ -5,11 +5,11 @@ use simplelog::Config;
 use structopt::StructOpt;
 
 use crate::backend::Backend;
-use crate::backend::DeviceType;
 use crate::backend::AD2;
 use crate::gui::TraceWithModel;
 use crate::trace::file::ImportableTrace;
 use crate::Result;
+use crate::TwoTerminalDeviceType;
 use crate::TwoTerminalTrace;
 
 pub trait Opt {
@@ -32,8 +32,6 @@ enum CliBackendOption {
 pub struct CliOpt {
     #[structopt(subcommand)]
     device: Option<CliBackendOption>,
-    #[structopt(name = "type")]
-    pub device_type: DeviceType,
 }
 
 impl Opt for CliOpt {
@@ -47,9 +45,9 @@ impl CliOpt {
     pub fn trace(&self) -> Result<Box<dyn TraceWithModel>> {
         Ok(
             match &self.device.as_ref().unwrap_or(&CliBackendOption::DWF) {
-                CliBackendOption::DWF => {
-                    Box::new(TwoTerminalTrace::from(AD2::new()?.trace_2(DeviceType::PN)?))
-                }
+                CliBackendOption::DWF => Box::new(TwoTerminalTrace::from(
+                    AD2::new()?.trace_2(TwoTerminalDeviceType::Diode)?,
+                )),
                 CliBackendOption::Csv { file } => {
                     Box::new(TwoTerminalTrace::from_csv(file.as_path())?)
                 }

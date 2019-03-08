@@ -5,14 +5,15 @@ use time::Duration;
 
 use crate::backend::Backend;
 use crate::backend::BiasedTrace;
-use crate::backend::DeviceType;
 use crate::backend::RawTrace;
 use crate::util::Try;
+use crate::{ThreeTerminalDeviceType, TwoTerminalDeviceType};
 
 pub struct AD2 {
     device: Device,
     diode_current_limit_ma: f64,
-    resistor: f64,
+    current_shunt_ohms: f64,
+    bias_limiter_ohms: f64,
     sampling_time: f64,
     bias_level_sampling_time: f64,
     cycles_to_sample: u32,
@@ -34,7 +35,8 @@ impl AD2 {
                     .open()?
             },
             diode_current_limit_ma: 40.0,
-            resistor: 101.0,
+            current_shunt_ohms: 101.0,
+            bias_limiter_ohms: 100_000.0,
             sampling_time: 1.0,
             bias_level_sampling_time: 1.0,
             cycles_to_sample: 3,
@@ -123,8 +125,8 @@ impl AD2 {
 }
 
 impl Backend for AD2 {
-    fn trace_2(&self, device_type: DeviceType) -> crate::Result<RawTrace> {
-        if device_type != DeviceType::PN {
+    fn trace_2(&self, device_type: TwoTerminalDeviceType) -> crate::Result<RawTrace> {
+        if device_type != TwoTerminalDeviceType::Diode {
             return Err(failure::err_msg(format!(
                 "Unsupported device type {}",
                 device_type
@@ -139,7 +141,7 @@ impl Backend for AD2 {
 
         let hz = f64::from(self.cycles_to_sample) / self.sampling_time;
         let current_limit = self.diode_current_limit_ma / 1000.0;
-        let max_v = current_limit * self.resistor + 0.5;
+        let max_v = current_limit * self.current_shunt_ohms + 0.5;
         let total_time = self.sampling_time + 0.05;
 
         let out_vf = self.device.analog_out(0);
@@ -185,20 +187,64 @@ impl Backend for AD2 {
         let is = vss
             .into_iter()
             .skip(start_ix)
-            .map(|v_s| v_s / self.resistor)
+            .map(|v_s| v_s / self.current_shunt_ohms)
             .collect_vec();
         Ok(RawTrace::new(is, vs.split_off(start_ix)))
     }
 
-    fn trace_3(&self, device_type: DeviceType) -> crate::Result<Vec<BiasedTrace>> {
-        let polarity = match device_type {
-            DeviceType::NPN => 1.0,
-            DeviceType::PNP => -1.0,
-            device_type => {
-                return Err(failure::err_msg(format!(
-                    "Unsupported device type {}",
-                    device_type
-                )));
+    fn trace_3(&self, device_type: ThreeTerminalDeviceType) -> crate::Result<Vec<BiasedTrace>> {
+        let (polarity, bias_levels): (f64, Vec<(f64, f64)>) = match device_type {
+            ThreeTerminalDeviceType::NPN => {
+                let polarity = 1.0;
+                (
+                    polarity,
+                    [10.0, 20.0, 30.0, 40.0, 50.0]
+                        .iter()
+                        .map(|ua| {
+                            let a = polarity * ua / 1_000_000.0;
+                            (a, a * self.bias_limiter_ohms)
+                        })
+                        .collect(),
+                )
+            }
+            ThreeTerminalDeviceType::PNP => {
+                let polarity = -1.0;
+                (
+                    polarity,
+                    [10.0, 20.0, 30.0, 40.0, 50.0]
+                        .iter()
+                        .map(|ua| {
+                            let a = polarity * ua / 1_000_000.0;
+                            (a, a * self.bias_limiter_ohms)
+                        })
+                        .collect(),
+                )
+            }
+            ThreeTerminalDeviceType::NFET => {
+                let polarity = 1.0;
+                (
+                    polarity,
+                    [1.0, 2.0, 3.0, 4.0, 5.0]
+                        .iter()
+                        .map(|v| {
+                            let v = polarity * v;
+                            (v, v)
+                        })
+                        .collect(),
+                )
+            }
+            ThreeTerminalDeviceType::PFET => {
+                let polarity = -1.0;
+                (
+                    polarity,
+                    [1.0, 2.0, 3.0, 4.0, 5.0]
+                        .iter()
+                        .map(|v| {
+                            let v = polarity * v;
+                            (v, v)
+                        })
+                        .collect(),
+                )
             }
         };
 
@@ -210,10 +256,9 @@ impl Backend for AD2 {
 
         let hz = f64::from(self.cycles_to_sample) / self.bias_level_sampling_time;
         let current_limit = self.diode_current_limit_ma / 1000.0;
-        let max_v = current_limit * self.resistor + 0.5 * polarity;
+        let max_v = current_limit * self.current_shunt_ohms + 0.5 * polarity;
         let time_slack = 0.05;
         let total_time = self.bias_level_sampling_time + time_slack;
-        let bias_resistor = 100_000.0;
 
         let out_vf = self.device.analog_out(0);
         out_vf.set_idle_mode(AnalogOutIdleMode::Initial)?;
@@ -255,13 +300,8 @@ impl Backend for AD2 {
 
         let mut traces = vec![];
 
-        let bias_levels = [10.0, 20.0, 30.0, 40.0, 50.0];
-
-        for bias_ua in bias_levels.iter().cloned() {
-            let bias_a = polarity * bias_ua / 1_000_000.0;
-            out_bias_carrier.set_function(AnalogOutFunction::Const {
-                offset: bias_a * bias_resistor,
-            })?;
+        for (bias_value, bias_v) in bias_levels {
+            out_bias_carrier.set_function(AnalogOutFunction::Const { offset: bias_v })?;
 
             out_vf.start()?;
             std::thread::sleep(Duration::nanoseconds((time_slack * 2.0 / 1.0e9) as i64).to_std()?);
@@ -278,7 +318,7 @@ impl Backend for AD2 {
             let is = vss
                 .into_iter()
                 .skip(start_ix)
-                .map(|v_s| v_s / self.resistor)
+                .map(|v_s| v_s / self.current_shunt_ohms)
                 .collect_vec();
             let vs = vs
                 .into_iter()
@@ -286,7 +326,7 @@ impl Backend for AD2 {
                 .map(|v| polarity * v)
                 .collect_vec();
             traces.push(BiasedTrace {
-                bias: r64(bias_a),
+                bias: r64(bias_value),
                 trace: RawTrace::new(is, vs),
             })
         }
