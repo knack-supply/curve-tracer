@@ -251,8 +251,6 @@ impl Update for Win {
 
                 self.model.trace.draw(&cr, v_factor, i_factor, height);
 
-                cr.set_source_rgba(0.0, 0.0, 0.0, 1.0);
-
                 for (ix, i_gridline) in linspace(0.0, max_i, 11).enumerate() {
                     if ix > 0 {
                         cr.select_font_face("Monospace", FontSlant::Normal, FontWeight::Normal);
@@ -263,7 +261,12 @@ impl Update for Win {
                             2.0,
                             height - 20.0 - i_gridline * i_factor + extents.height + 2.0,
                         );
-                        cr.show_text(&text);
+                        cr.text_path(&text);
+                        cr.set_source_rgba(1.0, 1.0, 1.0, 1.0);
+                        cr.set_line_width(2.0);
+                        cr.stroke_preserve();
+                        cr.set_source_rgba(0.0, 0.0, 0.0, 1.0);
+                        cr.fill();
                     }
                 }
 
@@ -284,7 +287,12 @@ impl Update for Win {
                                 extents.height + 2.0,
                             );
                         }
-                        cr.show_text(&text);
+                        cr.text_path(&text);
+                        cr.set_source_rgba(1.0, 1.0, 1.0, 1.0);
+                        cr.set_line_width(2.0);
+                        cr.stroke_preserve();
+                        cr.set_source_rgba(0.0, 0.0, 0.0, 1.0);
+                        cr.fill();
                     }
                 }
 
