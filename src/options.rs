@@ -8,6 +8,8 @@ use crate::backend::Backend;
 use crate::backend::AD2;
 use crate::gui::TraceWithModel;
 use crate::trace::file::ImportableTrace;
+use crate::AreaOfInterest;
+use crate::DeviceType;
 use crate::Result;
 use crate::TwoTerminalDeviceType;
 use crate::TwoTerminalTrace;
@@ -45,12 +47,14 @@ impl CliOpt {
     pub fn trace(&self) -> Result<Box<dyn TraceWithModel>> {
         Ok(
             match &self.device.as_ref().unwrap_or(&CliBackendOption::DWF) {
-                CliBackendOption::DWF => Box::new(TwoTerminalTrace::from(
+                CliBackendOption::DWF => Box::new(TwoTerminalTrace::from_raw_trace(
                     AD2::new()?.trace_2(TwoTerminalDeviceType::Diode)?,
+                    AreaOfInterest::from(DeviceType::TwoTerminal(TwoTerminalDeviceType::Diode)),
                 )),
-                CliBackendOption::Csv { file } => {
-                    Box::new(TwoTerminalTrace::from_csv(file.as_path())?)
-                }
+                CliBackendOption::Csv { file } => Box::new(TwoTerminalTrace::from_csv(
+                    file.as_path(),
+                    AreaOfInterest::from(DeviceType::TwoTerminal(TwoTerminalDeviceType::Diode)),
+                )?),
             },
         )
     }

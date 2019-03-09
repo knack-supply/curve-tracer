@@ -3,6 +3,7 @@ use std::fs::File;
 use std::path::Path;
 
 use crate::backend::RawTrace;
+use crate::AreaOfInterest;
 use crate::NullTrace;
 use crate::Result;
 use crate::ThreeTerminalTrace;
@@ -135,17 +136,17 @@ impl ExportableTrace for ThreeTerminalTrace {
 }
 
 pub trait ImportableTrace: Sized {
-    fn from_csv<P: AsRef<Path>>(path: P) -> Result<Self>;
+    fn from_csv<P: AsRef<Path>>(path: P, aoi: AreaOfInterest) -> Result<Self>;
 }
 
 impl ImportableTrace for NullTrace {
-    fn from_csv<P: AsRef<Path>>(_: P) -> Result<Self> {
+    fn from_csv<P: AsRef<Path>>(_: P, _: AreaOfInterest) -> Result<Self> {
         unreachable!()
     }
 }
 
 impl ImportableTrace for TwoTerminalTrace {
-    fn from_csv<P: AsRef<Path>>(path: P) -> Result<Self> {
+    fn from_csv<P: AsRef<Path>>(path: P, aoi: AreaOfInterest) -> Result<Self> {
         let mut vs = Vec::new();
         let mut is = Vec::new();
 
@@ -155,15 +156,12 @@ impl ImportableTrace for TwoTerminalTrace {
             is.push(record.i);
         }
 
-        Ok(TwoTerminalTrace {
-            trace: RawTrace::new(is, vs),
-            model: None,
-        })
+        Ok(TwoTerminalTrace::from_raw_trace(RawTrace::new(is, vs), aoi))
     }
 }
 
 impl ImportableTrace for ThreeTerminalTrace {
-    fn from_csv<P: AsRef<Path>>(path: P) -> Result<Self> {
+    fn from_csv<P: AsRef<Path>>(path: P, aoi: AreaOfInterest) -> Result<Self> {
         let mut traces = BTreeMap::new();
 
         for result in csv_reader_from_path(path.as_ref())? {
@@ -184,10 +182,7 @@ impl ImportableTrace for ThreeTerminalTrace {
                 .map(|(bias, (vs, is))| {
                     (
                         bias,
-                        TwoTerminalTrace {
-                            trace: RawTrace::new(is, vs),
-                            model: None,
-                        },
+                        TwoTerminalTrace::from_raw_trace(RawTrace::new(is, vs), aoi),
                     )
                 })
                 .collect(),

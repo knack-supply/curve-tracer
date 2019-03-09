@@ -2,14 +2,26 @@ use std::f64::consts::PI;
 use std::sync::Arc;
 
 use cairo::Context;
+use cairo::Format;
+use cairo::ImageSurface;
+use cairo::Operator;
 use itertools::Itertools;
 use itertools_num::linspace;
 
 use crate::model::diode::diode_model;
 use crate::trace::file::ExportableTrace;
+use crate::DeviceType;
+use crate::NullTrace;
+use crate::Result;
+use crate::ThreeTerminalDeviceType;
 use crate::ThreeTerminalTrace;
+use crate::TwoTerminalDeviceType;
 use crate::TwoTerminalTrace;
-use crate::{DeviceType, NullTrace, ThreeTerminalDeviceType, TwoTerminalDeviceType};
+use noisy_float::prelude::r64;
+
+const MASK_WIDTH: i32 = 10000;
+const MASK_HEIGHT: i32 = 2500;
+const SCATTER_PLOT_ALPHA: f64 = 0.05;
 
 const COLORS: [(u8, u8, u8); 8] = [
     (57, 106, 177),
@@ -51,6 +63,10 @@ pub trait TraceWithModel {
     fn model_report(&self) -> String;
 }
 
+pub trait TraceWithScatterPlot {
+    fn apply_mask(&self, cr: &Context) -> Result<()>;
+}
+
 pub trait DrawableTrace: TraceWithModel {
     fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64);
     fn draw_model(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64);
@@ -85,17 +101,23 @@ impl TraceWithModel for TwoTerminalTrace {
 
 impl DrawableTrace for TwoTerminalTrace {
     fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.05);
-        for (v, i) in self.trace.iter() {
-            cr.arc(
-                v * v_factor,
-                height - 20.0 - i * i_factor,
-                1.0,
-                0.0,
-                PI * 2.0,
-            );
-            cr.fill();
-        }
+        let w = f64::from(MASK_WIDTH);
+        let h = f64::from(MASK_HEIGHT);
+
+        let v_k = w / (self.aoi.max_v - self.aoi.min_v);
+        let v_b = self.aoi.min_v * v_k;
+
+        let i_k = h / (self.aoi.max_i - self.aoi.min_i);
+        let i_b = self.aoi.min_i * i_k;
+
+        cr.save();
+        cr.set_source_rgba(0.0, 0.0, 0.0, 1.0);
+        cr.translate(0.0, height - 20.0);
+        cr.scale(v_factor / v_k, i_factor / -i_k);
+        cr.translate(v_b, i_b);
+        self.apply_mask(cr).unwrap();
+        cr.fill();
+        cr.restore();
     }
 
     fn draw_model(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
@@ -115,6 +137,45 @@ impl DrawableTrace for TwoTerminalTrace {
     }
 }
 
+impl TraceWithScatterPlot for TwoTerminalTrace {
+    fn apply_mask(&self, cr: &Context) -> Result<()> {
+        let mut scatter_plot_mask = self.scatter_plot_mask.borrow_mut();
+        if scatter_plot_mask.is_none() {
+            let w = MASK_WIDTH;
+            let h = MASK_HEIGHT;
+            let surface = ImageSurface::create(Format::A8, w, h)
+                .map_err(|_| failure::err_msg("Can't create an off-screen surface"))?;
+            let cr = Context::new(&surface);
+            cr.save();
+            cr.set_source_rgba(0.0, 0.0, 0.0, 0.0);
+            cr.set_operator(Operator::Source);
+            cr.paint();
+            cr.restore();
+
+            cr.set_operator(Operator::Over);
+            cr.set_source_rgba(0.0, 0.0, 0.0, SCATTER_PLOT_ALPHA);
+
+            let v_k = f64::from(w) / (self.aoi.max_v - self.aoi.min_v);
+            let v_b = -self.aoi.min_v * v_k;
+
+            let i_k = f64::from(h) / (self.aoi.max_i - self.aoi.min_i);
+            let i_b = -self.aoi.min_i * i_k;
+
+            for (v, i) in self.trace.iter() {
+                cr.arc(v_b + v * v_k, i_b + i * i_k, 1.0, 0.0, PI * 2.0);
+                cr.fill();
+            }
+            drop(cr);
+            *scatter_plot_mask = Some(surface);
+        }
+
+        if let Some(mask) = &*scatter_plot_mask {
+            cr.mask_surface(&mask, 0.0, 0.0);
+        }
+        Ok(())
+    }
+}
+
 impl TraceWithModel for ThreeTerminalTrace {
     fn fill_model(&mut self) {}
     fn model_report(&self) -> String {
@@ -124,18 +185,30 @@ impl TraceWithModel for ThreeTerminalTrace {
 
 impl DrawableTrace for ThreeTerminalTrace {
     fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
-        for ((_, trace), color) in self.traces.iter().zip(COLORS_F64.iter()) {
-            cr.set_source_rgba(color.0, color.1, color.2, 0.05);
-            for (v, i) in trace.trace.iter() {
-                cr.arc(
-                    v * v_factor,
-                    height - 20.0 - i * i_factor,
-                    1.0,
-                    0.0,
-                    PI * 2.0,
-                );
-                cr.fill();
-            }
+        // FIXME: trace should know it's very own device type
+        let traces = if *self.traces.iter().last().unwrap().0 < r64(0.0) {
+            self.traces.iter().rev().collect_vec()
+        } else {
+            self.traces.iter().collect_vec()
+        };
+        for ((_, trace), color) in traces.iter().zip(COLORS_F64.iter()) {
+            let w = f64::from(MASK_WIDTH);
+            let h = f64::from(MASK_HEIGHT);
+
+            let v_k = w / (trace.aoi.max_v - trace.aoi.min_v);
+            let v_b = trace.aoi.min_v * v_k;
+
+            let i_k = h / (trace.aoi.max_i - trace.aoi.min_i);
+            let i_b = trace.aoi.min_i * i_k;
+
+            cr.save();
+            cr.set_source_rgba(color.0, color.1, color.2, 1.0);
+            cr.translate(0.0, height - 20.0);
+            cr.scale(v_factor / v_k, i_factor / -i_k);
+            cr.translate(v_b, i_b);
+            trace.apply_mask(cr).unwrap();
+            cr.fill();
+            cr.restore();
         }
     }
 

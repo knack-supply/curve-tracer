@@ -11,9 +11,12 @@ use structopt;
 
 use crate::backend::RawTrace;
 use crate::model::IVModel;
+use cairo::ImageSurface;
 use noisy_float::types::R64;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::str::FromStr;
 
 pub mod backend;
@@ -24,6 +27,68 @@ pub mod trace;
 pub mod util;
 
 pub type Result<T> = std::result::Result<T, failure::Error>;
+
+#[derive(Copy, Clone, Debug)]
+pub struct AreaOfInterest {
+    pub min_v: f64,
+    pub max_v: f64,
+    pub min_i: f64,
+    pub max_i: f64,
+}
+
+impl AreaOfInterest {
+    pub fn new_pos_i_pos_v(i: f64, v: f64) -> Self {
+        Self {
+            min_v: 0.0,
+            max_v: v,
+            min_i: 0.0,
+            max_i: i,
+        }
+    }
+
+    pub fn new_pos_i_neg_v(i: f64, v: f64) -> Self {
+        Self {
+            min_v: -v,
+            max_v: 0.0,
+            min_i: 0.0,
+            max_i: i,
+        }
+    }
+
+    pub fn extended(&self) -> Self {
+        let slack = 0.1;
+        let v_range = self.max_v - self.min_v;
+        let i_range = self.max_i - self.min_i;
+        Self {
+            min_v: self.min_v - v_range * slack,
+            max_v: self.max_v + v_range * slack,
+            min_i: self.min_i - i_range * slack,
+            max_i: self.max_i + i_range * slack,
+        }
+    }
+}
+
+impl From<DeviceType> for AreaOfInterest {
+    fn from(d: DeviceType) -> Self {
+        match d {
+            DeviceType::TwoTerminal(TwoTerminalDeviceType::Diode) => {
+                Self::new_pos_i_pos_v(0.05, 5.0).extended()
+            }
+            DeviceType::ThreeTerminal(ThreeTerminalDeviceType::NPN) => {
+                Self::new_pos_i_pos_v(0.05, 5.0).extended()
+            }
+            DeviceType::ThreeTerminal(ThreeTerminalDeviceType::PNP) => {
+                Self::new_pos_i_neg_v(0.05, 5.0).extended()
+            }
+            DeviceType::ThreeTerminal(ThreeTerminalDeviceType::NFET) => {
+                Self::new_pos_i_pos_v(0.05, 5.0).extended()
+            }
+            DeviceType::ThreeTerminal(ThreeTerminalDeviceType::PFET) => {
+                Self::new_pos_i_neg_v(0.05, 5.0).extended()
+            }
+        }
+    }
+}
 
 #[derive(Copy, Clone)]
 pub struct NullTrace {}
@@ -80,12 +145,19 @@ impl FromStr for TwoTerminalDeviceType {
 #[derive(Clone)]
 pub struct TwoTerminalTrace {
     trace: RawTrace,
+    aoi: AreaOfInterest,
     model: Option<Arc<dyn IVModel>>,
+    scatter_plot_mask: RefCell<Option<ImageSurface>>,
 }
 
-impl From<RawTrace> for TwoTerminalTrace {
-    fn from(trace: RawTrace) -> Self {
-        TwoTerminalTrace { trace, model: None }
+impl TwoTerminalTrace {
+    pub fn from_raw_trace(trace: RawTrace, aoi: AreaOfInterest) -> Self {
+        Self {
+            trace,
+            aoi,
+            model: None,
+            scatter_plot_mask: RefCell::new(None),
+        }
     }
 }
 

@@ -7,7 +7,8 @@ use crate::backend::Backend;
 use crate::backend::BiasedTrace;
 use crate::backend::RawTrace;
 use crate::util::Try;
-use crate::{ThreeTerminalDeviceType, TwoTerminalDeviceType};
+use crate::ThreeTerminalDeviceType;
+use crate::TwoTerminalDeviceType;
 
 pub struct AD2 {
     device: Device,

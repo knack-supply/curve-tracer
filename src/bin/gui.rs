@@ -48,11 +48,14 @@ use ks_curve_tracer::gui::GuiTrace;
 use ks_curve_tracer::options::GuiOpt;
 use ks_curve_tracer::options::Opt;
 use ks_curve_tracer::trace::file::ImportableTrace;
+use ks_curve_tracer::AreaOfInterest;
 use ks_curve_tracer::DeviceType;
+use ks_curve_tracer::NullTrace;
 use ks_curve_tracer::Result;
+use ks_curve_tracer::ThreeTerminalDeviceType;
 use ks_curve_tracer::ThreeTerminalTrace;
+use ks_curve_tracer::TwoTerminalDeviceType;
 use ks_curve_tracer::TwoTerminalTrace;
-use ks_curve_tracer::{NullTrace, ThreeTerminalDeviceType, TwoTerminalDeviceType};
 
 struct Model {
     relm: Relm<Win>,
@@ -150,7 +153,10 @@ impl Update for Win {
                 match self.model.device_type {
                     DeviceType::TwoTerminal(device_type) => match device.trace_2(device_type) {
                         Ok(trace) => {
-                            self.model.trace = Box::new(TwoTerminalTrace::from(trace));
+                            self.model.trace = Box::new(TwoTerminalTrace::from_raw_trace(
+                                trace,
+                                AreaOfInterest::from(self.model.device_type),
+                            ));
                             info!("Got the trace");
 
                             self.widgets.model_text.set_markup("");
@@ -165,9 +171,15 @@ impl Update for Win {
                     DeviceType::ThreeTerminal(device_type) => match device.trace_3(device_type) {
                         Ok(traces) => {
                             self.model.trace = Box::new(ThreeTerminalTrace::from(
-                                traces
-                                    .into_iter()
-                                    .map(|BiasedTrace { bias, trace }| (bias, trace)),
+                                traces.into_iter().map(|BiasedTrace { bias, trace }| {
+                                    (
+                                        bias,
+                                        TwoTerminalTrace::from_raw_trace(
+                                            trace,
+                                            AreaOfInterest::from(self.model.device_type),
+                                        ),
+                                    )
+                                }),
                             ));
                             info!("Got the trace");
 
@@ -352,11 +364,15 @@ impl Update for Win {
                     if let Some(filename) = dialog.get_filename() {
                         let res = try {
                             self.model.trace = match self.model.device_type {
-                                DeviceType::TwoTerminal(_) => {
-                                    Box::new(TwoTerminalTrace::from_csv(filename)?)
-                                }
+                                DeviceType::TwoTerminal(_) => Box::new(TwoTerminalTrace::from_csv(
+                                    filename,
+                                    AreaOfInterest::from(self.model.device_type),
+                                )?),
                                 DeviceType::ThreeTerminal(_) => {
-                                    Box::new(ThreeTerminalTrace::from_csv(filename)?)
+                                    Box::new(ThreeTerminalTrace::from_csv(
+                                        filename,
+                                        AreaOfInterest::from(self.model.device_type),
+                                    )?)
                                 }
                             };
                             info!("Got the trace");

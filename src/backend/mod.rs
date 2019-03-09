@@ -18,6 +18,7 @@ pub struct RawTrace {
     voltage: Vec<f64>,
 }
 
+#[allow(clippy::len_without_is_empty)]
 impl RawTrace {
     pub fn new(current: Vec<f64>, voltage: Vec<f64>) -> Self {
         assert_eq!(current.len(), voltage.len());
@@ -29,6 +30,10 @@ impl RawTrace {
             .iter()
             .cloned()
             .zip(self.current.iter().cloned())
+    }
+
+    pub fn len(&self) -> usize {
+        self.voltage.len()
     }
 }
 

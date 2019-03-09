@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * Improved installation guide in `README.md`
 * Better text rendering on the graph
+* Caching scatter plots #23
 
 ## [0.2.1] - 2019-03-07
 ### Added
