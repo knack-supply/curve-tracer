@@ -6,9 +6,11 @@ use time::Duration;
 use crate::backend::Backend;
 use crate::backend::BiasedTrace;
 use crate::backend::RawTrace;
+use crate::dut::BiasDrive;
+use crate::dut::DeviceType;
+use crate::dut::ThreeTerminalDeviceType;
+use crate::dut::TwoTerminalDeviceType;
 use crate::util::Try;
-use crate::ThreeTerminalDeviceType;
-use crate::TwoTerminalDeviceType;
 
 pub struct AD2 {
     device: Device,
@@ -126,8 +128,8 @@ impl AD2 {
 }
 
 impl Backend for AD2 {
-    fn trace_2(&self, device_type: TwoTerminalDeviceType) -> crate::Result<RawTrace> {
-        if device_type != TwoTerminalDeviceType::Diode {
+    fn trace_2(&self, device_type: &TwoTerminalDeviceType) -> crate::Result<RawTrace> {
+        if device_type != &TwoTerminalDeviceType::Diode {
             return Err(failure::err_msg(format!(
                 "Unsupported device type {}",
                 device_type
@@ -193,61 +195,17 @@ impl Backend for AD2 {
         Ok(RawTrace::new(is, vs.split_off(start_ix)))
     }
 
-    fn trace_3(&self, device_type: ThreeTerminalDeviceType) -> crate::Result<Vec<BiasedTrace>> {
-        let (polarity, bias_levels): (f64, Vec<(f64, f64)>) = match device_type {
-            ThreeTerminalDeviceType::NPN => {
-                let polarity = 1.0;
-                (
-                    polarity,
-                    [10.0, 20.0, 30.0, 40.0, 50.0]
-                        .iter()
-                        .map(|ua| {
-                            let a = polarity * ua / 1_000_000.0;
-                            (a, a * self.bias_limiter_ohms)
-                        })
-                        .collect(),
-                )
-            }
-            ThreeTerminalDeviceType::PNP => {
-                let polarity = -1.0;
-                (
-                    polarity,
-                    [10.0, 20.0, 30.0, 40.0, 50.0]
-                        .iter()
-                        .map(|ua| {
-                            let a = polarity * ua / 1_000_000.0;
-                            (a, a * self.bias_limiter_ohms)
-                        })
-                        .collect(),
-                )
-            }
-            ThreeTerminalDeviceType::NFET => {
-                let polarity = 1.0;
-                (
-                    polarity,
-                    [1.0, 2.0, 3.0, 4.0, 5.0]
-                        .iter()
-                        .map(|v| {
-                            let v = polarity * v;
-                            (v, v)
-                        })
-                        .collect(),
-                )
-            }
-            ThreeTerminalDeviceType::PFET => {
-                let polarity = -1.0;
-                (
-                    polarity,
-                    [1.0, 2.0, 3.0, 4.0, 5.0]
-                        .iter()
-                        .map(|v| {
-                            let v = polarity * v;
-                            (v, v)
-                        })
-                        .collect(),
-                )
-            }
+    fn trace_3(&self, device_type: &ThreeTerminalDeviceType) -> crate::Result<Vec<BiasedTrace>> {
+        let polarity = device_type.polarity();
+        let bias_factor = match device_type.bias_drive() {
+            BiasDrive::Voltage => 1.0,
+            BiasDrive::Current => self.bias_limiter_ohms,
         };
+        let bias_levels = device_type
+            .bias_levels()
+            .into_iter()
+            .map(|l| (l, l * bias_factor))
+            .collect_vec();
 
         self.device.reset()?;
         self.device.set_auto_configure(true)?;

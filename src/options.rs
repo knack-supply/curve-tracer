@@ -6,13 +6,10 @@ use structopt::StructOpt;
 
 use crate::backend::Backend;
 use crate::backend::AD2;
-use crate::gui::TraceWithModel;
-use crate::trace::file::ImportableTrace;
-use crate::AreaOfInterest;
-use crate::DeviceType;
+use crate::dut::trace::TraceWithModel;
+use crate::dut::DeviceType;
+use crate::dut::TwoTerminalDeviceType;
 use crate::Result;
-use crate::TwoTerminalDeviceType;
-use crate::TwoTerminalTrace;
 
 pub trait Opt {
     fn initialize_logging(&self) -> Result<()>;
@@ -47,14 +44,12 @@ impl CliOpt {
     pub fn trace(&self) -> Result<Box<dyn TraceWithModel>> {
         Ok(
             match &self.device.as_ref().unwrap_or(&CliBackendOption::DWF) {
-                CliBackendOption::DWF => Box::new(TwoTerminalTrace::from_raw_trace(
-                    AD2::new()?.trace_2(TwoTerminalDeviceType::Diode)?,
-                    AreaOfInterest::from(DeviceType::TwoTerminal(TwoTerminalDeviceType::Diode)),
-                )),
-                CliBackendOption::Csv { file } => Box::new(TwoTerminalTrace::from_csv(
-                    file.as_path(),
-                    AreaOfInterest::from(DeviceType::TwoTerminal(TwoTerminalDeviceType::Diode)),
-                )?),
+                CliBackendOption::DWF => {
+                    Box::new(TwoTerminalDeviceType::Diode.trace(&AD2::new()?)?)
+                }
+                CliBackendOption::Csv { file } => {
+                    Box::new(TwoTerminalDeviceType::Diode.load_from_csv(file.as_path())?)
+                }
             },
         )
     }
