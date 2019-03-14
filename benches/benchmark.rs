@@ -8,8 +8,8 @@ use criterion::BatchSize;
 use criterion::Criterion;
 
 use ks_curve_tracer::dut::trace::TraceWithModel;
-use ks_curve_tracer::dut::DeviceType;
-use ks_curve_tracer::dut::TwoTerminalDeviceType;
+use ks_curve_tracer::dut::Device;
+use ks_curve_tracer::dut::TwoTerminalDevice;
 
 fn criterion_config() -> Criterion {
     Criterion::default()
@@ -21,7 +21,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function_over_inputs(
         "Shockley model",
         move |b, trace_name| {
-            let diode_device_type = TwoTerminalDeviceType::Diode;
+            let diode_device_type = TwoTerminalDevice::Diode;
             let trace = diode_device_type
                 .load_from_csv(format!("res/{}.csv", trace_name))
                 .expect("Can't read the test trace");

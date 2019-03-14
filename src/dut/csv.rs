@@ -1,5 +1,10 @@
+use crate::backend::RawTrace;
+use crate::dut::aoi::AreaOfInterest;
+use crate::dut::trace::{ThreeTerminalTrace, TwoTerminalTrace};
 use crate::Result;
+use noisy_float::prelude::r64;
 use serde::de::DeserializeOwned;
+use std::collections::btree_map::BTreeMap;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::path::Path;
@@ -65,4 +70,44 @@ pub fn csv_reader_from_path<D: DeserializeOwned + 'static>(
     } else {
         Box::new(builder.from_path(path)?.into_deserialize())
     })
+}
+
+#[derive(Deserialize)]
+struct Record3 {
+    i: f64,
+    v: f64,
+    bias: f64,
+}
+
+pub fn load3_from_csv<P: AsRef<Path>>(
+    path: P,
+    reverse_order: bool,
+    aoi: AreaOfInterest,
+) -> Result<ThreeTerminalTrace> {
+    let mut traces = BTreeMap::new();
+
+    for result in csv_reader_from_path(path.as_ref())? {
+        let record: Record3 = result?;
+        let bias = r64(record.bias);
+
+        let (vs, is) = traces
+            .entry(bias)
+            .or_insert_with(|| (Vec::new(), Vec::new()));
+
+        vs.push(record.v);
+        is.push(record.i);
+    }
+
+    Ok(ThreeTerminalTrace::new(
+        reverse_order,
+        traces
+            .into_iter()
+            .map(|(bias, (vs, is))| {
+                (
+                    bias,
+                    TwoTerminalTrace::from_raw_trace(RawTrace::new(is, vs), aoi),
+                )
+            })
+            .collect(),
+    ))
 }

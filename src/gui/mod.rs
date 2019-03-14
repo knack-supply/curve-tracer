@@ -1,4 +1,5 @@
-use crate::dut::{SomeDeviceType, ThreeTerminalDeviceType, TwoTerminalDeviceType};
+pub mod widgets;
+
 use itertools::Itertools;
 
 pub const MASK_WIDTH: i32 = 10000;
@@ -30,42 +31,4 @@ lazy_static! {
             f64::from(b) / 255.0
         ))
         .collect_vec();
-}
-
-pub trait DevicePlot {
-    fn connection_hint(&self) -> &'static str;
-    fn legend(&self) -> String;
-}
-
-impl DevicePlot for SomeDeviceType {
-    fn connection_hint(&self) -> &'static str {
-        match self {
-            SomeDeviceType::TwoTerminal(TwoTerminalDeviceType::Diode) => "Top row: AKKKKKK",
-            SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::NPN) => "Bottom row: CBECBEC",
-            SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::PNP) => {
-                "Bottom row: EBCEBCE (reversed E/C)"
-            }
-            SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::NFET) => "Bottom row: DGSDGSD",
-            SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::PFET) => {
-                "Bottom row: SGDSGDS (reversed S/D)"
-            }
-        }
-    }
-    fn legend(&self) -> String {
-        match self {
-            SomeDeviceType::TwoTerminal(TwoTerminalDeviceType::Diode) => String::new(),
-            SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::NPN) =>
-                format!(r###"I<sub>BE</sub>: <span fgcolor="white" bgcolor="{}">10µA</span> <span fgcolor="white" bgcolor="{}">20µA</span> <span fgcolor="white" bgcolor="{}">30µA</span> <span fgcolor="white" bgcolor="{}">40µA</span> <span fgcolor="white" bgcolor="{}">50µA</span>"###,
-                        COLORS_HEX[0], COLORS_HEX[1], COLORS_HEX[2], COLORS_HEX[3], COLORS_HEX[4]),
-            SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::PNP) =>
-                format!(r###"I<sub>BE</sub>: <span fgcolor="white" bgcolor="{}">-10µA</span> <span fgcolor="white" bgcolor="{}">-20µA</span> <span fgcolor="white" bgcolor="{}">-30µA</span> <span fgcolor="white" bgcolor="{}">-40µA</span> <span fgcolor="white" bgcolor="{}">-50µA</span>"###,
-                        COLORS_HEX[0], COLORS_HEX[1], COLORS_HEX[2], COLORS_HEX[3], COLORS_HEX[4]),
-            SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::NFET) =>
-                format!(r###"V<sub>GS</sub>: <span fgcolor="white" bgcolor="{}">1V</span> <span fgcolor="white" bgcolor="{}">2V</span> <span fgcolor="white" bgcolor="{}">3V</span> <span fgcolor="white" bgcolor="{}">4V</span> <span fgcolor="white" bgcolor="{}">5V</span>"###,
-                        COLORS_HEX[0], COLORS_HEX[1], COLORS_HEX[2], COLORS_HEX[3], COLORS_HEX[4]),
-            SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::PFET) =>
-                format!(r###"V<sub>GS</sub>: <span fgcolor="white" bgcolor="{}">-1V</span> <span fgcolor="white" bgcolor="{}">-2V</span> <span fgcolor="white" bgcolor="{}">-3V</span> <span fgcolor="white" bgcolor="{}">-4V</span> <span fgcolor="white" bgcolor="{}">-5V</span>"###,
-                        COLORS_HEX[0], COLORS_HEX[1], COLORS_HEX[2], COLORS_HEX[3], COLORS_HEX[4]),
-        }
-    }
 }

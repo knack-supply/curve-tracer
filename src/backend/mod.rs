@@ -2,8 +2,7 @@ mod ad2;
 
 pub use self::ad2::AD2;
 
-use crate::dut::ThreeTerminalDeviceType;
-use crate::dut::TwoTerminalDeviceType;
+use crate::dut::BiasDrive;
 use noisy_float::prelude::*;
 
 #[derive(Clone)]
@@ -38,6 +37,11 @@ impl RawTrace {
 }
 
 pub trait Backend {
-    fn trace_2(&self, device_type: &TwoTerminalDeviceType) -> crate::Result<RawTrace>;
-    fn trace_3(&self, device_type: &ThreeTerminalDeviceType) -> crate::Result<Vec<BiasedTrace>>;
+    fn trace_2(&self) -> crate::Result<RawTrace>;
+    fn trace_3(
+        &self,
+        polarity: R64,
+        bias_drive: BiasDrive,
+        bias_levels: Vec<R64>,
+    ) -> crate::Result<Vec<BiasedTrace>>;
 }

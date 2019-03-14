@@ -7,8 +7,8 @@ use structopt::StructOpt;
 use crate::backend::Backend;
 use crate::backend::AD2;
 use crate::dut::trace::TraceWithModel;
-use crate::dut::DeviceType;
-use crate::dut::TwoTerminalDeviceType;
+use crate::dut::Device;
+use crate::dut::TwoTerminalDevice;
 use crate::Result;
 
 pub trait Opt {
@@ -44,11 +44,9 @@ impl CliOpt {
     pub fn trace(&self) -> Result<Box<dyn TraceWithModel>> {
         Ok(
             match &self.device.as_ref().unwrap_or(&CliBackendOption::DWF) {
-                CliBackendOption::DWF => {
-                    Box::new(TwoTerminalDeviceType::Diode.trace(&AD2::new()?)?)
-                }
+                CliBackendOption::DWF => Box::new(TwoTerminalDevice::Diode.trace(&AD2::new()?)?),
                 CliBackendOption::Csv { file } => {
-                    Box::new(TwoTerminalDeviceType::Diode.load_from_csv(file.as_path())?)
+                    Box::new(TwoTerminalDevice::Diode.load_from_csv(file.as_path())?)
                 }
             },
         )

@@ -36,6 +36,7 @@ use gtk::WidgetExt;
 use gtk::Window;
 use gtk::WindowType;
 use itertools_num::linspace;
+use relm::ContainerWidget;
 use relm::DrawHandler;
 use relm::Relm;
 use relm::Update;
@@ -45,10 +46,13 @@ use structopt::StructOpt;
 use ks_curve_tracer::dut::trace::GuiTrace;
 use ks_curve_tracer::dut::trace::NullTrace;
 use ks_curve_tracer::dut::DeviceType;
+use ks_curve_tracer::dut::SomeDevice;
 use ks_curve_tracer::dut::SomeDeviceType;
-use ks_curve_tracer::dut::ThreeTerminalDeviceType;
-use ks_curve_tracer::dut::TwoTerminalDeviceType;
-use ks_curve_tracer::gui::DevicePlot;
+use ks_curve_tracer::dut::TwoTerminalDevice;
+use ks_curve_tracer::dut::{
+    CurrentBiasedDeviceType, Device, TwoTerminalDeviceType, VoltageBiasedDeviceType,
+};
+use ks_curve_tracer::gui::widgets::{DeviceConfig, DeviceConfigMsg, DeviceConfigWidget};
 use ks_curve_tracer::options::GuiOpt;
 use ks_curve_tracer::options::Opt;
 use ks_curve_tracer::Result;
@@ -60,14 +64,14 @@ struct Model {
     opt: GuiOpt,
     v_zoom: f64,
     i_zoom: f64,
-    device_type: SomeDeviceType,
+    device: SomeDevice,
 }
 
 struct ModelParam {
     opt: GuiOpt,
 }
 
-#[derive(Msg, Clone)]
+#[derive(Msg, Clone, Debug)]
 enum Msg {
     Trace,
     FitModel,
@@ -78,12 +82,14 @@ enum Msg {
     VZoom(f64),
     IZoom(f64),
     DeviceType(SomeDeviceType),
+    UpdateConfig(DeviceConfig),
 }
 
 #[derive(Clone)]
 struct Widgets {
     trace_button: Button,
     drawing_area: DrawingArea,
+    device_config: relm::Component<DeviceConfigWidget>,
     model_text: Label,
     window: Window,
     connection_hint_text: Label,
@@ -137,20 +143,25 @@ impl Update for Win {
             opt: param.opt,
             v_zoom: 1.0,
             i_zoom: 0.05,
-            device_type: SomeDeviceType::TwoTerminal(TwoTerminalDeviceType::Diode),
+            device: SomeDevice::TwoTerminal(TwoTerminalDevice::Diode),
         }
     }
 
     fn update(&mut self, event: Msg) {
+        debug!("Event: {:?}", &event);
         match event {
             Msg::Trace => {
                 let device = self.model.opt.device().unwrap();
 
                 let res = try {
-                    self.model.trace = self.model.device_type.trace(&*device)?;
+                    self.model.trace = self.model.device.trace(&*device)?;
                     info!("Got the trace");
 
                     self.widgets.model_text.set_markup("");
+                    self.widgets
+                        .legend_text
+                        .set_markup(&self.model.device.legend());
+
                     self.widgets.drawing_area.queue_resize();
 
                     self.model.relm.stream().emit(Msg::FitModel);
@@ -183,7 +194,7 @@ impl Update for Win {
                 cr.translate(10.0, 10.0);
 
                 let max_i = self.model.i_zoom;
-                let max_v = self.model.v_zoom * self.model.device_type.polarity();
+                let max_v = self.model.v_zoom * self.model.device.area_of_interest().v_polarity();
 
                 let i_factor = (height - 20.0) / max_i;
                 let v_factor = (width - 20.0) / max_v;
@@ -274,15 +285,21 @@ impl Update for Win {
                 self.model.trace.draw_model(&cr, v_factor, i_factor, height);
             }
             Msg::DeviceType(device_type) => {
-                self.model.device_type = device_type;
+                let device = device_type.to_device();
+                self.widgets
+                    .device_config
+                    .stream()
+                    .emit(DeviceConfigMsg::SetConfig(device.config()));
+
+                self.model.device = device;
                 self.widgets
                     .connection_hint_text
-                    .set_markup(self.model.device_type.connection_hint());
-                self.widgets
-                    .legend_text
-                    .set_markup(&self.model.device_type.legend());
+                    .set_markup(device_type.connection_hint());
 
                 self.widgets.drawing_area.queue_resize();
+            }
+            Msg::UpdateConfig(config) => {
+                self.model.device.set_config(&config);
             }
             Msg::VZoom(z) => {
                 self.model.v_zoom = z;
@@ -326,9 +343,10 @@ impl Update for Win {
                 if dialog.run() == gtk::ResponseType::Accept.into() {
                     if let Some(filename) = dialog.get_filename() {
                         let res = try {
-                            self.model.trace = self.model.device_type.load_from_csv(filename)?;
+                            self.model.trace = self.model.device.load_from_csv(filename)?;
                             info!("Got the trace");
 
+                            self.widgets.legend_text.set_markup("");
                             self.widgets.model_text.set_markup("");
                             self.widgets.drawing_area.queue_resize();
 
@@ -404,7 +422,13 @@ impl Widget for Win {
                 v_zoom_buttons: &gtk::ButtonBox,
             ) {
                 button.set_mode(false);
-                connect!(relm, button, connect_clicked(_), msg.clone());
+                connect!(relm, button, connect_toggled(btn), {
+                    if btn.get_active() {
+                        Some(msg.clone())
+                    } else {
+                        None
+                    }
+                });
                 v_zoom_buttons.add(button);
             }
 
@@ -429,10 +453,10 @@ impl Widget for Win {
         {
             let options = [
                 SomeDeviceType::TwoTerminal(TwoTerminalDeviceType::Diode),
-                SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::NPN),
-                SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::PNP),
-                SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::NFET),
-                SomeDeviceType::ThreeTerminal(ThreeTerminalDeviceType::PFET),
+                SomeDeviceType::CurrentBiased(CurrentBiasedDeviceType::NPN),
+                SomeDeviceType::CurrentBiased(CurrentBiasedDeviceType::PNP),
+                SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::NFET),
+                SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::PFET),
             ]
             .iter()
             .map(|d| (format!("{}", d), Msg::DeviceType(d.clone())));
@@ -443,7 +467,7 @@ impl Widget for Win {
 
         let connection_hint_text = gtk::Label::new("");
         connection_hint_text.set_xalign(0.0);
-        connection_hint_text.set_markup(model.device_type.connection_hint());
+        connection_hint_text.set_markup(model.device.device_type().connection_hint());
         right_pane.add(&connection_hint_text);
 
         {
@@ -464,6 +488,16 @@ impl Widget for Win {
             }
         }
 
+        let device_config = right_pane.add_widget::<DeviceConfigWidget>(model.device.config());
+        {
+            let relm = relm.clone();
+            device_config.stream().observe(move |m| match m {
+                DeviceConfigMsg::ConfigUpdated(c) => {
+                    relm.stream().emit(Msg::UpdateConfig(c.clone()));
+                }
+                _ => {}
+            });
+        }
         let action_box = gtk::Box::new(Orientation::Horizontal, 8);
 
         let trace_button = Button::new_with_label("Trace");
@@ -480,7 +514,7 @@ impl Widget for Win {
 
         let legend_text = gtk::Label::new("");
         legend_text.set_xalign(0.0);
-        legend_text.set_markup(&model.device_type.legend());
+        legend_text.set_markup(&model.device.legend());
         right_pane.add(&legend_text);
 
         let model_text = gtk::Label::new("");
@@ -523,6 +557,7 @@ impl Widget for Win {
             widgets: Widgets {
                 trace_button,
                 drawing_area,
+                device_config,
                 model_text,
                 connection_hint_text,
                 legend_text,

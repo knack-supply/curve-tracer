@@ -2,15 +2,31 @@ use crate::backend::{Backend, RawTrace};
 use crate::dut::aoi::AreaOfInterest;
 use crate::dut::csv::csv_reader_from_path;
 use crate::dut::trace::TwoTerminalTrace;
-use crate::dut::{BiasDrive, DeviceType};
+use crate::dut::Device;
 use crate::Result;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::str::FromStr;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
+pub struct TwoTerminalDeviceConfig {}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum TwoTerminalDeviceType {
     Diode,
+}
+
+#[derive(Clone, Debug)]
+pub enum TwoTerminalDevice {
+    Diode,
+}
+
+impl From<&TwoTerminalDevice> for TwoTerminalDeviceType {
+    fn from(d: &TwoTerminalDevice) -> Self {
+        match d {
+            TwoTerminalDevice::Diode => TwoTerminalDeviceType::Diode,
+        }
+    }
 }
 
 impl Display for TwoTerminalDeviceType {
@@ -32,8 +48,9 @@ impl FromStr for TwoTerminalDeviceType {
     }
 }
 
-impl DeviceType for TwoTerminalDeviceType {
+impl Device for TwoTerminalDevice {
     type Trace = TwoTerminalTrace;
+    type Config = TwoTerminalDeviceConfig;
 
     fn area_of_interest(&self) -> AreaOfInterest {
         AreaOfInterest::new_pos_i_pos_v(0.05, 5.0).extended()
@@ -41,7 +58,7 @@ impl DeviceType for TwoTerminalDeviceType {
 
     fn trace(&self, backend: &dyn Backend) -> Result<Self::Trace> {
         Ok(TwoTerminalTrace::from_raw_trace(
-            backend.trace_2(self)?,
+            backend.trace_2()?,
             self.area_of_interest(),
         ))
     }
@@ -62,17 +79,11 @@ impl DeviceType for TwoTerminalDeviceType {
         ))
     }
 
-    fn polarity(&self) -> f64 {
-        1.0
+    fn config(&self) -> TwoTerminalDeviceConfig {
+        TwoTerminalDeviceConfig {}
     }
 
-    fn bias_levels(&self) -> Vec<f64> {
-        Vec::new()
-    }
-
-    fn bias_drive(&self) -> BiasDrive {
-        BiasDrive::Voltage
-    }
+    fn set_config(&mut self, _: &Self::Config) {}
 }
 
 #[derive(Deserialize)]

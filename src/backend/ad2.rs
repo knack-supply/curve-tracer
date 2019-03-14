@@ -7,9 +7,6 @@ use crate::backend::Backend;
 use crate::backend::BiasedTrace;
 use crate::backend::RawTrace;
 use crate::dut::BiasDrive;
-use crate::dut::DeviceType;
-use crate::dut::ThreeTerminalDeviceType;
-use crate::dut::TwoTerminalDeviceType;
 use crate::util::Try;
 
 pub struct AD2 {
@@ -128,14 +125,7 @@ impl AD2 {
 }
 
 impl Backend for AD2 {
-    fn trace_2(&self, device_type: &TwoTerminalDeviceType) -> crate::Result<RawTrace> {
-        if device_type != &TwoTerminalDeviceType::Diode {
-            return Err(failure::err_msg(format!(
-                "Unsupported device type {}",
-                device_type
-            )));
-        }
-
+    fn trace_2(&self) -> crate::Result<RawTrace> {
         self.device.reset()?;
         self.device.set_auto_configure(true)?;
         self.device.set_enabled(true)?;
@@ -195,14 +185,17 @@ impl Backend for AD2 {
         Ok(RawTrace::new(is, vs.split_off(start_ix)))
     }
 
-    fn trace_3(&self, device_type: &ThreeTerminalDeviceType) -> crate::Result<Vec<BiasedTrace>> {
-        let polarity = device_type.polarity();
-        let bias_factor = match device_type.bias_drive() {
+    fn trace_3(
+        &self,
+        polarity: R64,
+        bias_drive: BiasDrive,
+        bias_levels: Vec<R64>,
+    ) -> crate::Result<Vec<BiasedTrace>> {
+        let bias_factor = match bias_drive {
             BiasDrive::Voltage => 1.0,
             BiasDrive::Current => self.bias_limiter_ohms,
         };
-        let bias_levels = device_type
-            .bias_levels()
+        let bias_levels = bias_levels
             .into_iter()
             .map(|l| (l, l * bias_factor))
             .collect_vec();
@@ -215,7 +208,7 @@ impl Backend for AD2 {
 
         let hz = f64::from(self.cycles_to_sample) / self.bias_level_sampling_time;
         let current_limit = self.diode_current_limit_ma / 1000.0;
-        let max_v = current_limit * self.current_shunt_ohms + 0.5 * polarity;
+        let max_v = current_limit * self.current_shunt_ohms + 0.5 * polarity.raw();
         let time_slack = 0.05;
         let total_time = self.bias_level_sampling_time + time_slack;
 
@@ -260,7 +253,9 @@ impl Backend for AD2 {
         let mut traces = vec![];
 
         for (bias_value, bias_v) in bias_levels {
-            out_bias_carrier.set_function(AnalogOutFunction::Const { offset: bias_v })?;
+            out_bias_carrier.set_function(AnalogOutFunction::Const {
+                offset: bias_v.raw(),
+            })?;
 
             out_vf.start()?;
             std::thread::sleep(Duration::nanoseconds((time_slack * 2.0 / 1.0e9) as i64).to_std()?);
@@ -282,10 +277,10 @@ impl Backend for AD2 {
             let vs = vs
                 .into_iter()
                 .skip(start_ix)
-                .map(|v| polarity * v)
+                .map(|v| (polarity * v).raw())
                 .collect_vec();
             traces.push(BiasedTrace {
-                bias: r64(bias_value),
+                bias: bias_value,
                 trace: RawTrace::new(is, vs),
             })
         }

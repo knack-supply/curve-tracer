@@ -36,4 +36,12 @@ impl AreaOfInterest {
             max_i: self.max_i + i_range * slack,
         }
     }
+
+    pub fn v_polarity(&self) -> f64 {
+        if self.min_v < 0.0 && self.min_v.abs() > 2.0 * self.max_v.abs() {
+            -1.0
+        } else {
+            1.0
+        }
+    }
 }
