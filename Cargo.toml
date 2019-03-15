@@ -1,6 +1,6 @@
 [package]
 name = "ks-curve-tracer"
-version = "0.3.1-alpha.0"
+version = "0.4.0"
 authors = ["Ilya Epifanov <elijah.epifanov@gmail.com>"]
 edition = "2018"
 description = "Curve tracer GUI for AD2 curve tracer"
