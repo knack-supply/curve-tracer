@@ -151,9 +151,8 @@ impl Update for Win {
         debug!("Event: {:?}", &event);
         match event {
             Msg::Trace => {
-                let device = self.model.opt.device().unwrap();
-
                 let res = try {
+                    let device = self.model.opt.device()?;
                     self.model.trace = self.model.device.trace(&*device)?;
                     info!("Got the trace");
 
