@@ -193,7 +193,7 @@ impl Update for Win {
                 cr.translate(10.0, 10.0);
 
                 let max_i = self.model.i_zoom;
-                let max_v = self.model.v_zoom * self.model.device.area_of_interest().v_polarity();
+                let max_v = self.model.v_zoom * self.model.trace.area_of_interest().v_polarity();
 
                 let i_factor = (height - 20.0) / max_i;
                 let v_factor = (width - 20.0) / max_v;
@@ -294,8 +294,6 @@ impl Update for Win {
                 self.widgets
                     .connection_hint_text
                     .set_markup(device_type.connection_hint());
-
-                self.widgets.drawing_area.queue_resize();
             }
             Msg::UpdateConfig(config) => {
                 self.model.device.set_config(&config);

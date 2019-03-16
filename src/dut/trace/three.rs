@@ -12,6 +12,7 @@ use crate::dut::trace::{
 use crate::gui::COLORS_F64;
 use crate::gui::{MASK_HEIGHT, MASK_WIDTH};
 use crate::Result;
+use crate::dut::aoi::AreaOfInterest;
 
 #[derive(Clone)]
 pub struct ThreeTerminalTrace {
@@ -56,6 +57,14 @@ impl TraceWithModel for ThreeTerminalTrace {
 }
 
 impl DrawableTrace for ThreeTerminalTrace {
+    fn area_of_interest(&self) -> AreaOfInterest {
+        if let Some((_, trace)) = self.traces.iter().next() {
+            trace.aoi
+        } else {
+            AreaOfInterest::default()
+        }
+    }
+
     fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
         let traces = if self.reverse_order {
             self.traces.iter().rev().collect_vec()

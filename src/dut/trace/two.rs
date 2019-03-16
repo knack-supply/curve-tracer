@@ -104,6 +104,10 @@ impl TraceWithScatterPlot for TwoTerminalTrace {
 }
 
 impl DrawableTrace for TwoTerminalTrace {
+    fn area_of_interest(&self) -> AreaOfInterest {
+        self.aoi
+    }
+
     fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
         let w = f64::from(MASK_WIDTH);
         let h = f64::from(MASK_HEIGHT);

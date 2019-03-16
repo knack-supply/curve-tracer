@@ -4,6 +4,7 @@ use crate::dut::trace::TraceWithModel;
 use crate::Result;
 use cairo::Context;
 use std::path::Path;
+use crate::dut::aoi::AreaOfInterest;
 
 #[derive(Copy, Clone)]
 pub struct NullTrace {}
@@ -22,6 +23,9 @@ impl TraceWithModel for NullTrace {
 }
 
 impl DrawableTrace for NullTrace {
+    fn area_of_interest(&self) -> AreaOfInterest {
+        AreaOfInterest::default()
+    }
     fn draw(&self, _: &Context, _: f64, _: f64, _: f64) {}
     fn draw_model(&self, _: &Context, _: f64, _: f64, _: f64) {}
 }

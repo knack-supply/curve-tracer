@@ -45,3 +45,9 @@ impl AreaOfInterest {
         }
     }
 }
+
+impl Default for AreaOfInterest {
+    fn default() -> Self {
+        Self::new_pos_i_pos_v(0.005, 5.0)
+    }
+}

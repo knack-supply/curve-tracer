@@ -10,6 +10,7 @@ use std::path::Path;
 
 use crate::Result;
 use cairo::Context;
+use crate::dut::aoi::AreaOfInterest;
 
 pub trait ExportableTrace {
     fn save_as_csv(&self, path: &Path) -> Result<()>;
@@ -27,6 +28,7 @@ pub trait TraceWithScatterPlot {
 }
 
 pub trait DrawableTrace: TraceWithModel {
+    fn area_of_interest(&self) -> AreaOfInterest;
     fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64);
     fn draw_model(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64);
 }
@@ -40,6 +42,10 @@ impl GuiTrace for TwoTerminalTrace {}
 impl GuiTrace for ThreeTerminalTrace {}
 
 impl DrawableTrace for Box<dyn GuiTrace> {
+    fn area_of_interest(&self) -> AreaOfInterest {
+        GuiTrace::area_of_interest(&*self)
+    }
+
     fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
         GuiTrace::draw(&*self, cr, v_factor, i_factor, height)
     }
