@@ -2,6 +2,7 @@ use gtk::ContainerExt;
 use gtk::SpinButtonExt;
 use gtk::SpinButtonSignals;
 use gtk::WidgetExt;
+use gtk::LabelExt;
 use noisy_float::prelude::r64;
 use noisy_float::prelude::R64;
 use relm::{Relm, Update, Widget};
@@ -88,15 +89,23 @@ impl Widget for FETOptionsWidget {
     fn view(relm: &Relm<Self>, model: Self::Model) -> Self {
         let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 8);
 
+        let bias_label = gtk::Label::new("");
+        bias_label.set_markup("V<sub>GS</sub>");
+        hbox.add(&bias_label);
+
         let min_spinner = gtk::SpinButton::new_with_range(0.0, 5.0, 0.1);
         min_spinner.set_numeric(true);
         min_spinner.set_value(model.config.min_bias_voltage.raw());
         hbox.add(&min_spinner);
 
+        hbox.add(&gtk::Label::new("to"));
+
         let max_spinner = gtk::SpinButton::new_with_range(0.0, 5.0, 0.1);
         max_spinner.set_numeric(true);
         max_spinner.set_value(model.config.max_bias_voltage.raw());
         hbox.add(&max_spinner);
+
+        hbox.add(&gtk::Label::new("V"));
 
         connect!(
             relm,

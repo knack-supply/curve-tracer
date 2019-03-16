@@ -387,11 +387,9 @@ impl Widget for Win {
         let help_text = gtk::Label::new("");
         help_text.set_xalign(0.0);
         help_text.set_markup("\
-        This is a very early version of the software.\n\
-        Only diode measurement is included\n\
-        for demonstration purposes.\n\
+        This is an early version of the software.\n\
         Please submit your suggestions and bug reports here:\n\
-        <a href=\"https://github.com/knack-supply/curve-tracer\">https://github.com/knack-supply/curve-tracer</a>\n\
+        <a href=\"https://github.com/knack-supply/curve-tracer/issues\">https://github.com/knack-supply/curve-tracer/issues</a>\n\
         \n\
         Usage:\n\
         1) Run trace at least once\n\
@@ -467,6 +465,46 @@ impl Widget for Win {
         connection_hint_text.set_markup(model.device.device_type().connection_hint());
         right_pane.add(&connection_hint_text);
 
+        let action_box = gtk::Box::new(Orientation::Horizontal, 8);
+
+        let trace_button = Button::new_with_label("Trace");
+        trace_button.set_hexpand(true);
+        action_box.add(&trace_button);
+
+        let save_button = Button::new_from_icon_name("document-save", gtk::IconSize::Button.into());
+        action_box.add(&save_button);
+
+        let load_button = Button::new_from_icon_name("document-open", gtk::IconSize::Button.into());
+        action_box.add(&load_button);
+
+        right_pane.add(&action_box);
+
+        let device_config = right_pane.add_widget::<DeviceConfigWidget>(model.device.config());
+        {
+            let relm = relm.clone();
+            device_config.stream().observe(move |m| match m {
+                DeviceConfigMsg::ConfigUpdated(c) => {
+                    relm.stream().emit(Msg::UpdateConfig(c.clone()));
+                }
+                _ => {}
+            });
+        }
+
+        let filler = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        filler.set_vexpand(true);
+        right_pane.add(&filler);
+
+        let model_text = gtk::Label::new("");
+        model_text.set_xalign(0.0);
+        model_text.set_margin_top(8);
+        model_text.set_margin_bottom(8);
+        right_pane.add(&model_text);
+
+        let legend_text = gtk::Label::new("");
+        legend_text.set_xalign(0.0);
+        legend_text.set_markup(&model.device.legend());
+        right_pane.add(&legend_text);
+
         {
             let options = [0.5, 1.0, 2.0, 5.0]
                 .iter()
@@ -484,41 +522,6 @@ impl Widget for Win {
                 right_pane.add(&buttons);
             }
         }
-
-        let device_config = right_pane.add_widget::<DeviceConfigWidget>(model.device.config());
-        {
-            let relm = relm.clone();
-            device_config.stream().observe(move |m| match m {
-                DeviceConfigMsg::ConfigUpdated(c) => {
-                    relm.stream().emit(Msg::UpdateConfig(c.clone()));
-                }
-                _ => {}
-            });
-        }
-        let action_box = gtk::Box::new(Orientation::Horizontal, 8);
-
-        let trace_button = Button::new_with_label("Trace");
-        trace_button.set_hexpand(true);
-        action_box.add(&trace_button);
-
-        let save_button = Button::new_from_icon_name("document-save", gtk::IconSize::Button.into());
-        action_box.add(&save_button);
-
-        let load_button = Button::new_from_icon_name("document-open", gtk::IconSize::Button.into());
-        action_box.add(&load_button);
-
-        right_pane.add(&action_box);
-
-        let legend_text = gtk::Label::new("");
-        legend_text.set_xalign(0.0);
-        legend_text.set_markup(&model.device.legend());
-        right_pane.add(&legend_text);
-
-        let model_text = gtk::Label::new("");
-        model_text.set_xalign(0.0);
-        model_text.set_margin_top(8);
-        model_text.set_margin_bottom(8);
-        right_pane.add(&model_text);
 
         let drawing_area = DrawingArea::new();
         model.draw_handler.init(&drawing_area);

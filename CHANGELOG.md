@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - ReleaseDate
 ### Changed
+* Tweaked the right pane a little bit
 * Panning the plot only when tracing, not when selecting another type of DUT
 ### Fixed
 * Panic when there's no AD2 connected

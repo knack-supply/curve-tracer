@@ -3,6 +3,7 @@ use gtk::ContainerExt;
 use gtk::SpinButtonExt;
 use gtk::SpinButtonSignals;
 use gtk::WidgetExt;
+use gtk::LabelExt;
 use noisy_float::prelude::r64;
 use noisy_float::prelude::R64;
 use relm::{Relm, Update, Widget};
@@ -87,15 +88,23 @@ impl Widget for BJTOptionsWidget {
     fn view(relm: &Relm<Self>, model: Self::Model) -> Self {
         let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 8);
 
+        let bias_label = gtk::Label::new("");
+        bias_label.set_markup("I<sub>BE</sub>");
+        hbox.add(&bias_label);
+
         let min_spinner = gtk::SpinButton::new_with_range(0.0, 50.0, 1.0);
         min_spinner.set_numeric(true);
         min_spinner.set_value(model.config.min_bias_current.raw() * 1_000_000.0);
         hbox.add(&min_spinner);
 
+        hbox.add(&gtk::Label::new("to"));
+
         let max_spinner = gtk::SpinButton::new_with_range(0.0, 50.0, 1.0);
         max_spinner.set_numeric(true);
         max_spinner.set_value(model.config.max_bias_current.raw() * 1_000_000.0);
         hbox.add(&max_spinner);
+
+        hbox.add(&gtk::Label::new("µA"));
 
         connect!(
             relm,
