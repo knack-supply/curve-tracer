@@ -4,6 +4,7 @@ pub use self::ad2::AD2;
 
 use crate::dut::BiasDrive;
 use noisy_float::prelude::*;
+use std::fmt::Debug;
 
 #[derive(Clone)]
 pub struct BiasedTrace {
@@ -15,6 +16,12 @@ pub struct BiasedTrace {
 pub struct RawTrace {
     current: Vec<f64>,
     voltage: Vec<f64>,
+}
+
+impl Debug for RawTrace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("RawTrace({})", self.current.len()))
+    }
 }
 
 #[allow(clippy::len_without_is_empty)]
@@ -36,7 +43,7 @@ impl RawTrace {
     }
 }
 
-pub trait Backend {
+pub trait Backend: Send + Sync {
     fn trace_2(&self) -> crate::Result<RawTrace>;
     fn trace_3(
         &self,

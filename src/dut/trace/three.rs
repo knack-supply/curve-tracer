@@ -5,19 +5,25 @@ use cairo::Context;
 use itertools::Itertools;
 use noisy_float::prelude::R64;
 
+use crate::dut::aoi::AreaOfInterest;
 use crate::dut::csv::csv_writer_from_path;
 use crate::dut::trace::{
-    DrawableTrace, ExportableTrace, TraceWithModel, TraceWithScatterPlot, TwoTerminalTrace,
+    DrawableTrace, Trace, TraceWithModel, TwoTerminalGuiTrace, TwoTerminalTrace,
 };
 use crate::gui::COLORS_F64;
 use crate::gui::{MASK_HEIGHT, MASK_WIDTH};
 use crate::Result;
-use crate::dut::aoi::AreaOfInterest;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ThreeTerminalTrace {
     reverse_order: bool,
     pub traces: BTreeMap<R64, TwoTerminalTrace>,
+}
+
+#[derive(Clone)]
+pub struct ThreeTerminalGuiTrace {
+    reverse_order: bool,
+    pub traces: BTreeMap<R64, TwoTerminalGuiTrace>,
 }
 
 impl ThreeTerminalTrace {
@@ -29,7 +35,51 @@ impl ThreeTerminalTrace {
     }
 }
 
-impl ExportableTrace for ThreeTerminalTrace {
+impl ThreeTerminalGuiTrace {
+    pub fn new(
+        reverse_order: bool,
+        traces: BTreeMap<R64, TwoTerminalGuiTrace>,
+    ) -> ThreeTerminalGuiTrace {
+        ThreeTerminalGuiTrace {
+            reverse_order,
+            traces,
+        }
+    }
+
+    pub fn into_three_terminal_trace(self) -> ThreeTerminalTrace {
+        ThreeTerminalTrace {
+            reverse_order: self.reverse_order,
+            traces: self
+                .traces
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        }
+    }
+}
+
+impl From<ThreeTerminalTrace> for ThreeTerminalGuiTrace {
+    fn from(trace: ThreeTerminalTrace) -> ThreeTerminalGuiTrace {
+        ThreeTerminalGuiTrace {
+            reverse_order: trace.reverse_order,
+            traces: trace
+                .traces
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        }
+    }
+}
+
+impl Trace for ThreeTerminalTrace {
+    fn area_of_interest(&self) -> AreaOfInterest {
+        if let Some((_, trace)) = self.traces.iter().next() {
+            trace.aoi
+        } else {
+            AreaOfInterest::default()
+        }
+    }
+
     fn save_as_csv(&self, path: &Path) -> Result<()> {
         let mut out = csv_writer_from_path(path)?;
 
@@ -49,22 +99,24 @@ impl ExportableTrace for ThreeTerminalTrace {
     }
 }
 
-impl TraceWithModel for ThreeTerminalTrace {
+impl Trace for ThreeTerminalGuiTrace {
+    fn area_of_interest(&self) -> AreaOfInterest {
+        self.clone().into_three_terminal_trace().area_of_interest()
+    }
+
+    fn save_as_csv(&self, path: &Path) -> Result<()> {
+        self.clone().into_three_terminal_trace().save_as_csv(path)
+    }
+}
+
+impl TraceWithModel for ThreeTerminalGuiTrace {
     fn fill_model(&mut self) {}
     fn model_report(&self) -> String {
         String::new()
     }
 }
 
-impl DrawableTrace for ThreeTerminalTrace {
-    fn area_of_interest(&self) -> AreaOfInterest {
-        if let Some((_, trace)) = self.traces.iter().next() {
-            trace.aoi
-        } else {
-            AreaOfInterest::default()
-        }
-    }
-
+impl DrawableTrace for ThreeTerminalGuiTrace {
     fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
         let traces = if self.reverse_order {
             self.traces.iter().rev().collect_vec()
@@ -76,11 +128,13 @@ impl DrawableTrace for ThreeTerminalTrace {
             let w = f64::from(MASK_WIDTH);
             let h = f64::from(MASK_HEIGHT);
 
-            let v_k = w / (trace.aoi.max_v - trace.aoi.min_v);
-            let v_b = trace.aoi.min_v * v_k;
+            let aoi = trace.trace.aoi;
 
-            let i_k = h / (trace.aoi.max_i - trace.aoi.min_i);
-            let i_b = trace.aoi.min_i * i_k;
+            let v_k = w / (aoi.max_v - aoi.min_v);
+            let v_b = aoi.min_v * v_k;
+
+            let i_k = h / (aoi.max_i - aoi.min_i);
+            let i_b = aoi.min_i * i_k;
 
             cr.save();
             cr.set_source_rgba(color.0, color.1, color.2, 1.0);

@@ -6,13 +6,15 @@ pub use self::null::*;
 pub use self::three::*;
 pub use self::two::*;
 
+use std::fmt::Debug;
 use std::path::Path;
 
+use crate::dut::aoi::AreaOfInterest;
 use crate::Result;
 use cairo::Context;
-use crate::dut::aoi::AreaOfInterest;
 
-pub trait ExportableTrace {
+pub trait Trace {
+    fn area_of_interest(&self) -> AreaOfInterest;
     fn save_as_csv(&self, path: &Path) -> Result<()>;
 }
 
@@ -21,52 +23,41 @@ pub trait TraceWithModel {
     fn model_report(&self) -> String;
 }
 
-pub trait GuiTrace: DrawableTrace + ExportableTrace {}
-
-pub trait TraceWithScatterPlot {
-    fn apply_mask(&self, cr: &Context) -> Result<()>;
+pub trait ShareableTrace: Trace + Send + Sync + Debug {
+    fn as_gui_trace(&self) -> Box<dyn GuiTrace>;
 }
 
+pub trait GuiTrace: Trace + DrawableTrace {}
+
 pub trait DrawableTrace: TraceWithModel {
-    fn area_of_interest(&self) -> AreaOfInterest;
     fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64);
     fn draw_model(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64);
 }
 
-impl GuiTrace for Box<dyn GuiTrace> {}
+impl Trace for Box<dyn ShareableTrace> {
+    fn area_of_interest(&self) -> AreaOfInterest {
+        ShareableTrace::area_of_interest(&**self)
+    }
+
+    fn save_as_csv(&self, path: &Path) -> Result<()> {
+        ShareableTrace::save_as_csv(&**self, path)
+    }
+}
 
 impl GuiTrace for NullTrace {}
 
-impl GuiTrace for TwoTerminalTrace {}
+impl GuiTrace for TwoTerminalGuiTrace {}
 
-impl GuiTrace for ThreeTerminalTrace {}
+impl GuiTrace for ThreeTerminalGuiTrace {}
 
-impl DrawableTrace for Box<dyn GuiTrace> {
-    fn area_of_interest(&self) -> AreaOfInterest {
-        GuiTrace::area_of_interest(&*self)
-    }
-
-    fn draw(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
-        GuiTrace::draw(&*self, cr, v_factor, i_factor, height)
-    }
-
-    fn draw_model(&self, cr: &Context, v_factor: f64, i_factor: f64, height: f64) {
-        GuiTrace::draw_model(&*self, cr, v_factor, i_factor, height)
+impl ShareableTrace for TwoTerminalTrace {
+    fn as_gui_trace(&self) -> Box<dyn GuiTrace> {
+        Box::new(TwoTerminalGuiTrace::from(self.clone()))
     }
 }
 
-impl TraceWithModel for Box<dyn GuiTrace> {
-    fn fill_model(&mut self) {
-        GuiTrace::fill_model(&mut *self)
-    }
-
-    fn model_report(&self) -> String {
-        GuiTrace::model_report(&*self)
-    }
-}
-
-impl ExportableTrace for Box<dyn GuiTrace> {
-    fn save_as_csv(&self, path: &Path) -> Result<()> {
-        GuiTrace::save_as_csv(&*self, path)
+impl ShareableTrace for ThreeTerminalTrace {
+    fn as_gui_trace(&self) -> Box<dyn GuiTrace> {
+        Box::new(ThreeTerminalGuiTrace::from(self.clone()))
     }
 }

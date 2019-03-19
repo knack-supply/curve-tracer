@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::backend::Backend;
 use crate::dut::aoi::AreaOfInterest;
-use crate::dut::trace::GuiTrace;
+use crate::dut::trace::{ShareableTrace, Trace};
 use crate::gui::COLORS_HEX;
 use crate::Result;
 
@@ -34,7 +34,7 @@ pub enum BiasDrive {
 }
 
 pub trait Device: Sized {
-    type Trace: GuiTrace;
+    type Trace: Trace;
     type Config;
     fn area_of_interest(&self) -> AreaOfInterest;
     fn trace(&self, backend: &dyn Backend) -> Result<Self::Trace>;
@@ -104,7 +104,7 @@ impl From<SomeDeviceType> for SomeDevice {
 }
 
 impl Device for SomeDevice {
-    type Trace = Box<dyn GuiTrace>;
+    type Trace = Box<dyn ShareableTrace>;
     type Config = DeviceConfig;
 
     fn area_of_interest(&self) -> AreaOfInterest {

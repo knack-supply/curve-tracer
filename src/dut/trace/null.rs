@@ -1,15 +1,18 @@
+use crate::dut::aoi::AreaOfInterest;
 use crate::dut::trace::DrawableTrace;
-use crate::dut::trace::ExportableTrace;
+use crate::dut::trace::Trace;
 use crate::dut::trace::TraceWithModel;
 use crate::Result;
 use cairo::Context;
 use std::path::Path;
-use crate::dut::aoi::AreaOfInterest;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct NullTrace {}
 
-impl ExportableTrace for NullTrace {
+impl Trace for NullTrace {
+    fn area_of_interest(&self) -> AreaOfInterest {
+        AreaOfInterest::default()
+    }
     fn save_as_csv(&self, _: &Path) -> Result<()> {
         Err(failure::err_msg("No trace to save"))
     }
@@ -23,9 +26,6 @@ impl TraceWithModel for NullTrace {
 }
 
 impl DrawableTrace for NullTrace {
-    fn area_of_interest(&self) -> AreaOfInterest {
-        AreaOfInterest::default()
-    }
     fn draw(&self, _: &Context, _: f64, _: f64, _: f64) {}
     fn draw_model(&self, _: &Context, _: f64, _: f64, _: f64) {}
 }

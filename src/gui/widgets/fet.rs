@@ -1,8 +1,8 @@
 use gtk::ContainerExt;
+use gtk::LabelExt;
 use gtk::SpinButtonExt;
 use gtk::SpinButtonSignals;
 use gtk::WidgetExt;
-use gtk::LabelExt;
 use noisy_float::prelude::r64;
 use noisy_float::prelude::R64;
 use relm::{Relm, Update, Widget};

@@ -11,12 +11,12 @@ use cairo::enums::FontSlant;
 use cairo::enums::FontWeight;
 use gdk_pixbuf::Pixbuf;
 use gtk;
-use gtk::Button;
 use gtk::ButtonBoxExt;
 use gtk::ButtonBoxStyle;
 use gtk::ButtonExt;
 use gtk::ButtonsType;
 use gtk::ContainerExt;
+use gtk::CssProviderExt;
 use gtk::DialogExt;
 use gtk::DialogFlags;
 use gtk::DrawingArea;
@@ -30,21 +30,26 @@ use gtk::MessageType;
 use gtk::Orientation;
 use gtk::Orientation::Horizontal;
 use gtk::Orientation::Vertical;
+use gtk::OverlayExt;
 use gtk::ResponseType;
+use gtk::SpinnerExt;
+use gtk::StyleContextExt;
 use gtk::ToggleButtonExt;
 use gtk::WidgetExt;
 use gtk::Window;
 use gtk::WindowType;
+use gtk::{Button, CssProvider, STYLE_PROVIDER_PRIORITY_APPLICATION};
 use itertools_num::linspace;
-use relm::ContainerWidget;
 use relm::DrawHandler;
 use relm::Relm;
 use relm::Update;
 use relm::Widget;
+use relm::{Channel, ContainerWidget};
 use structopt::StructOpt;
 
-use ks_curve_tracer::dut::trace::GuiTrace;
+use core::borrow::Borrow;
 use ks_curve_tracer::dut::trace::NullTrace;
+use ks_curve_tracer::dut::trace::{GuiTrace, ShareableTrace};
 use ks_curve_tracer::dut::DeviceType;
 use ks_curve_tracer::dut::SomeDevice;
 use ks_curve_tracer::dut::SomeDeviceType;
@@ -56,6 +61,8 @@ use ks_curve_tracer::gui::widgets::{DeviceConfig, DeviceConfigMsg, DeviceConfigW
 use ks_curve_tracer::options::GuiOpt;
 use ks_curve_tracer::options::Opt;
 use ks_curve_tracer::Result;
+use std::sync::Arc;
+use std::thread;
 
 struct Model {
     relm: Relm<Win>,
@@ -74,6 +81,8 @@ struct ModelParam {
 #[derive(Msg, Clone, Debug)]
 enum Msg {
     Trace,
+    TraceSucceeded(Arc<dyn ShareableTrace>),
+    TraceFailed(Arc<failure::Error>),
     FitModel,
     LoadTrace,
     SaveTrace,
@@ -87,13 +96,13 @@ enum Msg {
 
 #[derive(Clone)]
 struct Widgets {
-    trace_button: Button,
-    drawing_area: DrawingArea,
-    device_config: relm::Component<DeviceConfigWidget>,
-    model_text: Label,
     window: Window,
+    drawing_area: DrawingArea,
+    drawing_area_overlay: gtk::Overlay,
+    device_config: relm::Component<DeviceConfigWidget>,
     connection_hint_text: Label,
     legend_text: Label,
+    model_text: Label,
 }
 
 struct Win {
@@ -151,21 +160,52 @@ impl Update for Win {
         debug!("Event: {:?}", &event);
         match event {
             Msg::Trace => {
+                let drawing_area_overlay_style = self
+                    .widgets
+                    .drawing_area_overlay
+                    .get_style_context()
+                    .unwrap();
+                drawing_area_overlay_style.add_class("active");
+                self.widgets.model_text.set_markup("");
+                self.widgets
+                    .legend_text
+                    .set_markup(&self.model.device.legend());
+
+                let stream = self.model.relm.stream().clone();
+                let (_, sender) = Channel::new(move |msg| {
+                    stream.emit(msg);
+                });
                 let res = try {
-                    let device = self.model.opt.device()?;
-                    self.model.trace = self.model.device.trace(&*device)?;
-                    info!("Got the trace");
+                    let capture_device = self.model.opt.device()?;
+                    let dut = self.model.device.clone();
 
-                    self.widgets.model_text.set_markup("");
-                    self.widgets
-                        .legend_text
-                        .set_markup(&self.model.device.legend());
-
-                    self.widgets.drawing_area.queue_resize();
-
-                    self.model.relm.stream().emit(Msg::FitModel);
+                    thread::spawn(move || {
+                        let res = try {
+                            let trace: Arc<dyn ShareableTrace> =
+                                Arc::from(dut.trace(&*capture_device)?);
+                            info!("Got the trace");
+                            sender
+                                .send(Msg::TraceSucceeded(trace))
+                                .expect("send message");
+                        };
+                        if let Err(err) = res {
+                            sender.send(Msg::TraceFailed(err)).expect("send message");
+                        }
+                    });
                 };
-                let _ = self.handle_error(res);
+                if let Err(err) = res {
+                    self.model.relm.stream().emit(Msg::TraceFailed(err));
+                }
+            }
+            Msg::TraceSucceeded(trace) => {
+                self.model.trace = trace.as_gui_trace();
+                self.model.relm.stream().emit(Msg::UpdateDrawBuffer);
+                self.model.relm.stream().emit(Msg::FitModel);
+            }
+            Msg::TraceFailed(error) => {
+                self.model.relm.stream().emit(Msg::UpdateDrawBuffer);
+                self.model.relm.stream().emit(Msg::FitModel);
+                self.error_box_error(error.borrow());
             }
             Msg::FitModel => {
                 self.model.trace.fill_model();
@@ -173,7 +213,13 @@ impl Update for Win {
                 self.widgets
                     .model_text
                     .set_markup(&self.model.trace.model_report());
-                self.widgets.drawing_area.queue_resize();
+                self.model.relm.stream().emit(Msg::UpdateDrawBuffer);
+                let drawing_area_overlay_style = self
+                    .widgets
+                    .drawing_area_overlay
+                    .get_style_context()
+                    .unwrap();
+                drawing_area_overlay_style.remove_class("active");
             }
             Msg::UpdateDrawBuffer => {
                 let cr = self.model.draw_handler.get_context();
@@ -300,11 +346,11 @@ impl Update for Win {
             }
             Msg::VZoom(z) => {
                 self.model.v_zoom = z;
-                self.widgets.drawing_area.queue_resize();
+                self.model.relm.stream().emit(Msg::UpdateDrawBuffer);
             }
             Msg::IZoom(z) => {
                 self.model.i_zoom = z;
-                self.widgets.drawing_area.queue_resize();
+                self.model.relm.stream().emit(Msg::UpdateDrawBuffer);
             }
             Msg::SaveTrace => {
                 let dialog = gtk::FileChooserDialog::with_buttons(
@@ -340,12 +386,13 @@ impl Update for Win {
                 if dialog.run() == gtk::ResponseType::Accept.into() {
                     if let Some(filename) = dialog.get_filename() {
                         let res = try {
-                            self.model.trace = self.model.device.load_from_csv(filename)?;
+                            self.model.trace =
+                                self.model.device.load_from_csv(filename)?.as_gui_trace();
                             info!("Got the trace");
 
                             self.widgets.legend_text.set_markup("");
                             self.widgets.model_text.set_markup("");
-                            self.widgets.drawing_area.queue_resize();
+                            self.model.relm.stream().emit(Msg::UpdateDrawBuffer);
 
                             self.model.relm.stream().emit(Msg::FitModel);
                         };
@@ -523,14 +570,49 @@ impl Widget for Win {
             }
         }
 
+        let drawing_area_overlay = gtk::Overlay::new();
+        drawing_area_overlay.set_name("iv-curve");
+        drawing_area_overlay.set_hexpand(true);
+        drawing_area_overlay.set_vexpand(true);
         let drawing_area = DrawingArea::new();
+
+        // .init() disables double buffering for some reason
         model.draw_handler.init(&drawing_area);
+        #[allow(deprecated)]
+        drawing_area.set_double_buffered(true);
+
         drawing_area.set_hexpand(true);
         drawing_area.set_size_request(500, 500);
-        hbox.add(&drawing_area);
+        drawing_area_overlay.add(&drawing_area);
+
+        let lightbox = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+        lightbox.set_hexpand(true);
+        lightbox.set_vexpand(true);
+
+        let spinner = gtk::Spinner::new();
+        spinner.set_size_request(256, 256);
+        spinner.set_halign(gtk::Align::Center);
+        spinner.set_valign(gtk::Align::Center);
+        spinner.start();
+
+        drawing_area_overlay.add_overlay(&lightbox);
+        drawing_area_overlay.add_overlay(&spinner);
+
+        drawing_area_overlay.show_all();
+
+        hbox.add(&drawing_area_overlay);
         hbox.add(&right_pane);
 
         let window = Window::new(WindowType::Toplevel);
+
+        let style = include_bytes!("../../res/main.css");
+        let css_provider = CssProvider::new();
+        css_provider.load_from_data(style).unwrap();
+        gtk::StyleContext::add_provider_for_screen(
+            &gdk::Screen::get_default().unwrap(),
+            &css_provider,
+            STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
 
         window.add(&hbox);
 
@@ -555,13 +637,13 @@ impl Widget for Win {
         Win {
             model,
             widgets: Widgets {
-                trace_button,
+                window,
                 drawing_area,
+                drawing_area_overlay,
                 device_config,
                 model_text,
                 connection_hint_text,
                 legend_text,
-                window,
             },
         }
     }

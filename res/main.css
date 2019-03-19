@@ -1,0 +1,23 @@
+#iv-curve {
+}
+
+#iv-curve box {
+    opacity: 0.0;
+    background-color: #ffffff;
+    transition-property: opacity;
+    transition-duration: 0.25s;
+}
+
+#iv-curve.active box {
+    opacity: 0.75;
+}
+
+#iv-curve spinner {
+    opacity: 0.0;
+    transition-property: opacity;
+    transition-duration: 0.25s;
+}
+
+#iv-curve.active spinner {
+    opacity: 1.0;
+}
