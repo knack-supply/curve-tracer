@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Spinner animation during capture, load and model fitting #24
 ### Changed
 * Capturing and loading a trace is now async #24
+* Tidied up BJT and FET device parameters panes
 
 ## [0.4.1] - 2019-03-16
 ### Changed

@@ -95,6 +95,7 @@ impl Widget for FETOptionsWidget {
 
         let min_spinner = gtk::SpinButton::new_with_range(0.0, 5.0, 0.1);
         min_spinner.set_numeric(true);
+        min_spinner.set_hexpand(true);
         min_spinner.set_value(model.config.min_bias_voltage.raw());
         hbox.add(&min_spinner);
 
@@ -102,6 +103,7 @@ impl Widget for FETOptionsWidget {
 
         let max_spinner = gtk::SpinButton::new_with_range(0.0, 5.0, 0.1);
         max_spinner.set_numeric(true);
+        max_spinner.set_hexpand(true);
         max_spinner.set_value(model.config.max_bias_voltage.raw());
         hbox.add(&max_spinner);
 

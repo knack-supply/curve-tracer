@@ -94,6 +94,7 @@ impl Widget for BJTOptionsWidget {
 
         let min_spinner = gtk::SpinButton::new_with_range(0.0, 50.0, 1.0);
         min_spinner.set_numeric(true);
+        min_spinner.set_hexpand(true);
         min_spinner.set_value(model.config.min_bias_current.raw() * 1_000_000.0);
         hbox.add(&min_spinner);
 
@@ -101,6 +102,7 @@ impl Widget for BJTOptionsWidget {
 
         let max_spinner = gtk::SpinButton::new_with_range(0.0, 50.0, 1.0);
         max_spinner.set_numeric(true);
+        max_spinner.set_hexpand(true);
         max_spinner.set_value(model.config.max_bias_current.raw() * 1_000_000.0);
         hbox.add(&max_spinner);
 
