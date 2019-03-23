@@ -7,7 +7,7 @@ use noisy_float::prelude::r64;
 use noisy_float::prelude::R64;
 use relm::{Relm, Update, Widget};
 
-use crate::dut::VoltageBiasedDeviceConfig;
+use crate::dut::{VoltageBiasedDeviceConfig, VoltageBiasedDeviceType};
 
 #[derive(Msg)]
 pub enum FETOptionsMsg {
@@ -89,8 +89,13 @@ impl Widget for FETOptionsWidget {
     fn view(relm: &Relm<Self>, model: Self::Model) -> Self {
         let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 8);
 
+        let sign = match model.config.device_type {
+            VoltageBiasedDeviceType::NEFET | VoltageBiasedDeviceType::PEFET => "",
+            VoltageBiasedDeviceType::NDFET | VoltageBiasedDeviceType::PDFET => "-",
+        };
+
         let bias_label = gtk::Label::new("");
-        bias_label.set_markup("V<sub>GS</sub>");
+        bias_label.set_markup(&format!("{}V<sub>GS</sub>", sign));
         hbox.add(&bias_label);
 
         let min_spinner = gtk::SpinButton::new_with_range(0.0, 5.0, 0.1);

@@ -17,21 +17,25 @@ use crate::Result;
 pub struct VoltageBiasedDeviceConfig {
     pub min_bias_voltage: R64,
     pub max_bias_voltage: R64,
+    pub device_type: VoltageBiasedDeviceType,
 }
 
-impl Default for VoltageBiasedDeviceConfig {
-    fn default() -> Self {
+impl VoltageBiasedDeviceConfig {
+    fn new_with_device_type(device_type: VoltageBiasedDeviceType) -> Self {
         VoltageBiasedDeviceConfig {
             min_bias_voltage: r64(0.0),
             max_bias_voltage: r64(5.0),
+            device_type,
         }
     }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum VoltageBiasedDeviceType {
-    NFET,
-    PFET,
+    NEFET,
+    PEFET,
+    NDFET,
+    PDFET,
 }
 
 #[derive(Clone, Debug)]
@@ -43,27 +47,34 @@ pub struct VoltageBiasedDevice {
 impl VoltageBiasedDevice {
     pub fn from_type(device_type: VoltageBiasedDeviceType) -> Self {
         VoltageBiasedDevice {
-            config: VoltageBiasedDeviceConfig::default(),
+            config: VoltageBiasedDeviceConfig::new_with_device_type(device_type),
             device_type,
         }
     }
 
     fn polarity(&self) -> R64 {
         match &self.device_type {
-            VoltageBiasedDeviceType::NFET => r64(1.0),
-            VoltageBiasedDeviceType::PFET => r64(-1.0),
+            VoltageBiasedDeviceType::NEFET | VoltageBiasedDeviceType::NDFET => r64(1.0),
+            VoltageBiasedDeviceType::PEFET | VoltageBiasedDeviceType::PDFET => r64(-1.0),
+        }
+    }
+
+    fn bias_polarity(&self) -> R64 {
+        match &self.device_type {
+            VoltageBiasedDeviceType::NEFET | VoltageBiasedDeviceType::PDFET => r64(1.0),
+            VoltageBiasedDeviceType::NDFET | VoltageBiasedDeviceType::PEFET => r64(-1.0),
         }
     }
 
     pub fn bias_levels(&self) -> Vec<R64> {
-        let polarity = self.polarity();
+        let bias_polarity = self.bias_polarity();
 
         linspace(
             self.config.min_bias_voltage,
             self.config.max_bias_voltage,
             5,
         )
-        .map(|l| l * polarity)
+        .map(|l| l * bias_polarity)
         .collect_vec()
     }
 }
@@ -80,15 +91,19 @@ impl Device for VoltageBiasedDevice {
 
     fn area_of_interest(&self) -> AreaOfInterest {
         match &self.device_type {
-            VoltageBiasedDeviceType::NFET => AreaOfInterest::new_pos_i_pos_v(0.05, 5.0).extended(),
-            VoltageBiasedDeviceType::PFET => AreaOfInterest::new_pos_i_neg_v(0.05, 5.0).extended(),
+            VoltageBiasedDeviceType::NEFET | VoltageBiasedDeviceType::NDFET => {
+                AreaOfInterest::new_pos_i_pos_v(0.05, 5.0).extended()
+            }
+            VoltageBiasedDeviceType::PEFET | VoltageBiasedDeviceType::PDFET => {
+                AreaOfInterest::new_pos_i_neg_v(0.05, 5.0).extended()
+            }
         }
     }
 
     fn trace(&self, backend: &dyn Backend) -> Result<Self::Trace> {
         let aoi = self.area_of_interest();
         Ok(ThreeTerminalTrace::new(
-            self.polarity() < 0.0,
+            self.bias_polarity() < 0.0,
             backend
                 .trace_3(self.polarity(), BiasDrive::Voltage, self.bias_levels())?
                 .into_iter()
@@ -115,8 +130,10 @@ impl Device for VoltageBiasedDevice {
 impl Display for VoltageBiasedDeviceType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            VoltageBiasedDeviceType::NFET => f.write_str("NFET"),
-            VoltageBiasedDeviceType::PFET => f.write_str("PFET"),
+            VoltageBiasedDeviceType::NEFET => f.write_str("NEFET"),
+            VoltageBiasedDeviceType::PEFET => f.write_str("PEFET"),
+            VoltageBiasedDeviceType::NDFET => f.write_str("NDFET"),
+            VoltageBiasedDeviceType::PDFET => f.write_str("PDFET"),
         }
     }
 }
@@ -126,8 +143,10 @@ impl FromStr for VoltageBiasedDeviceType {
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "NFET" => Ok(VoltageBiasedDeviceType::NFET),
-            "PFET" => Ok(VoltageBiasedDeviceType::PFET),
+            "NEFET" => Ok(VoltageBiasedDeviceType::NEFET),
+            "PEFET" => Ok(VoltageBiasedDeviceType::PEFET),
+            "NDFET" => Ok(VoltageBiasedDeviceType::NDFET),
+            "PDFET" => Ok(VoltageBiasedDeviceType::PDFET),
             _ => Err(()),
         }
     }

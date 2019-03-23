@@ -1,10 +1,11 @@
+use std::fmt::{Display, Formatter};
+
 use crate::dut::two::TwoTerminalDevice;
 use crate::dut::CurrentBiasedDevice;
 use crate::dut::{
     CurrentBiasedDeviceType, Device, SomeDevice, TwoTerminalDeviceType, VoltageBiasedDevice,
     VoltageBiasedDeviceType,
 };
-use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum SomeDeviceType {
@@ -27,8 +28,12 @@ impl SomeDeviceType {
             SomeDeviceType::CurrentBiased(CurrentBiasedDeviceType::PNP) => {
                 "Bottom row: EBCEBCE (reversed E/C)"
             }
-            SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::NFET) => "Bottom row: DGSDGSD",
-            SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::PFET) => {
+            SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::NEFET)
+            | SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::NDFET) => {
+                "Bottom row: DGSDGSD"
+            }
+            SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::PEFET)
+            | SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::PDFET) => {
                 "Bottom row: SGDSGDS (reversed S/D)"
             }
         }
@@ -43,25 +48,11 @@ impl DeviceType for SomeDeviceType {
             SomeDeviceType::TwoTerminal(TwoTerminalDeviceType::Diode) => {
                 SomeDevice::TwoTerminal(TwoTerminalDevice::Diode)
             }
-            SomeDeviceType::CurrentBiased(CurrentBiasedDeviceType::NPN) => {
-                SomeDevice::CurrentBiased(CurrentBiasedDevice::from_type(
-                    CurrentBiasedDeviceType::NPN,
-                ))
+            SomeDeviceType::CurrentBiased(t) => {
+                SomeDevice::CurrentBiased(CurrentBiasedDevice::from_type(t.clone()))
             }
-            SomeDeviceType::CurrentBiased(CurrentBiasedDeviceType::PNP) => {
-                SomeDevice::CurrentBiased(CurrentBiasedDevice::from_type(
-                    CurrentBiasedDeviceType::PNP,
-                ))
-            }
-            SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::NFET) => {
-                SomeDevice::VoltageBiased(VoltageBiasedDevice::from_type(
-                    VoltageBiasedDeviceType::NFET,
-                ))
-            }
-            SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::PFET) => {
-                SomeDevice::VoltageBiased(VoltageBiasedDevice::from_type(
-                    VoltageBiasedDeviceType::PFET,
-                ))
+            SomeDeviceType::VoltageBiased(t) => {
+                SomeDevice::VoltageBiased(VoltageBiasedDevice::from_type(t.clone()))
             }
         }
     }

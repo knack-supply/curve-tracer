@@ -439,11 +439,9 @@ impl Widget for Win {
         <a href=\"https://github.com/knack-supply/curve-tracer/issues\">https://github.com/knack-supply/curve-tracer/issues</a>\n\
         \n\
         Usage:\n\
-        1) Run trace at least once\n\
-        2) Wait 5 seconds to let AD2 input offsets settle\n\
-        3) Use some thermal insulator to insert the device\n\
-        under test into the curve tracer\n\
-        4) Press \"Trace\" button below");
+        1) Select the device type\n\
+        2) Set the trace settings, such as bias levels\n\
+        3) Press \"Trace\" button below");
 
         right_pane.add(&help_text);
 
@@ -451,9 +449,9 @@ impl Widget for Win {
             relm: &Relm<Win>,
             options: impl Iterator<Item = (String, Msg)>,
             initial_option: usize,
-        ) -> Option<gtk::ButtonBox> {
+            last_button: Option<gtk::RadioButton>,
+        ) -> Option<(gtk::ButtonBox, gtk::RadioButton)> {
             let mut options = options.enumerate();
-            let (ix, (label, msg)) = options.next()?;
             let button_box = gtk::ButtonBox::new(Orientation::Horizontal);
             button_box.set_layout(ButtonBoxStyle::Expand);
 
@@ -461,7 +459,7 @@ impl Widget for Win {
                 relm: &Relm<Win>,
                 msg: Msg,
                 button: &gtk::RadioButton,
-                v_zoom_buttons: &gtk::ButtonBox,
+                button_box: &gtk::ButtonBox,
             ) {
                 button.set_mode(false);
                 connect!(relm, button, connect_toggled(btn), {
@@ -471,25 +469,31 @@ impl Widget for Win {
                         None
                     }
                 });
-                v_zoom_buttons.add(button);
+                button_box.add(button);
             }
 
-            let first_button = gtk::RadioButton::new_with_label(&label);
-            setup_button(&relm, msg, &first_button, &button_box);
-            if ix == initial_option {
-                first_button.set_active(true);
-            }
+            let last_button: gtk::RadioButton = match last_button {
+                Some(last_button) => last_button,
+                None => {
+                    let (ix, (label, msg)) = options.next()?;
+                    let last_button = gtk::RadioButton::new_with_label(&label);
+                    setup_button(&relm, msg, &last_button, &button_box);
+                    if ix == initial_option {
+                        last_button.set_active(true);
+                    }
+                    last_button
+                }
+            };
 
             for (ix, (label, msg)) in options {
-                let zoom_button =
-                    gtk::RadioButton::new_with_label_from_widget(&first_button, &label);
-                setup_button(&relm, msg, &zoom_button, &button_box);
+                let button = gtk::RadioButton::new_with_label_from_widget(&last_button, &label);
+                setup_button(&relm, msg, &button, &button_box);
                 if ix == initial_option {
-                    zoom_button.set_active(true);
+                    button.set_active(true);
                 }
             }
 
-            Some(button_box)
+            Some((button_box, last_button))
         }
 
         {
@@ -497,14 +501,22 @@ impl Widget for Win {
                 SomeDeviceType::TwoTerminal(TwoTerminalDeviceType::Diode),
                 SomeDeviceType::CurrentBiased(CurrentBiasedDeviceType::NPN),
                 SomeDeviceType::CurrentBiased(CurrentBiasedDeviceType::PNP),
-                SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::NFET),
-                SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::PFET),
             ]
             .iter()
             .map(|d| (format!("{}", d), Msg::DeviceType(d.clone())));
-            if let Some(buttons) = radio_button_box(&relm, options, 0) {
-                right_pane.add(&buttons);
-            }
+            let (buttons, last_button) = radio_button_box(&relm, options, 0, None).unwrap();
+            right_pane.add(&buttons);
+
+            let options = [
+                SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::NEFET),
+                SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::PEFET),
+                SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::NDFET),
+                SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::PDFET),
+            ]
+            .iter()
+            .map(|d| (format!("{}", d), Msg::DeviceType(d.clone())));
+            let (buttons, _) = radio_button_box(&relm, options, 0, Some(last_button)).unwrap();
+            right_pane.add(&buttons);
         }
 
         let connection_hint_text = gtk::Label::new("");
@@ -556,7 +568,7 @@ impl Widget for Win {
             let options = [0.5, 1.0, 2.0, 5.0]
                 .iter()
                 .map(|&v| (format!("{:0.1}V", v), Msg::VZoom(v)));
-            if let Some(buttons) = radio_button_box(&relm, options, 1) {
+            if let Some((buttons, _)) = radio_button_box(&relm, options, 1, None) {
                 right_pane.add(&buttons);
             }
         }
@@ -565,7 +577,7 @@ impl Widget for Win {
             let options = [0.005, 0.01, 0.02, 0.05]
                 .iter()
                 .map(|&i| (format!("{:0.0}mA", i * 1000.0), Msg::IZoom(i)));
-            if let Some(buttons) = radio_button_box(&relm, options, 3) {
+            if let Some((buttons, _)) = radio_button_box(&relm, options, 3, None) {
                 right_pane.add(&buttons);
             }
         }
