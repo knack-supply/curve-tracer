@@ -51,7 +51,9 @@ impl From<TwoTerminalTrace> for TwoTerminalGuiTrace {
 impl TraceWithModel for TwoTerminalGuiTrace {
     fn fill_model(&mut self) {
         if self.model.is_none() {
-            self.model = Some(Arc::new(diode_model(&self.trace.trace)))
+            if let Some(model) = diode_model(&self.trace.trace) {
+                self.model = Some(Arc::new(model))
+            }
         }
     }
 

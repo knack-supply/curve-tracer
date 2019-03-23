@@ -162,7 +162,7 @@ pub fn gauss_newton<N: Real, D: Dim + DimName, F>(
 pub fn linear_regression<N: Real, D: DimName>(
     x: MatrixMN<N, D, Dynamic>,
     y: MatrixMN<N, Dynamic, U1>,
-) -> RowVectorN<N, D>
+) -> Option<RowVectorN<N, D>>
 where
     DefaultAllocator: Allocator<N, Dynamic, Dynamic>
         + Allocator<N, Dynamic>
@@ -183,8 +183,12 @@ where
     };
 
     let x_svd = {
+        let x_t = x.transpose();
+        if x_t.len() == 0 {
+            return None;
+        }
         trace_time!("SVD");
-        SVD::new(x.transpose(), true, true)
+        SVD::try_new(x_t, true, true, N::default_epsilon(), 1000)?
     };
     let u = x_svd.u.unwrap();
     let s = x_svd.singular_values;
@@ -202,7 +206,9 @@ where
     };
 
     trace_time!("linear_regression (V' * S^-1)'");
-    (v_t.transpose() * sinv)
-        .transpose()
-        .fixed_resize::<U1, D>(N::zero())
+    Some(
+        (v_t.transpose() * sinv)
+            .transpose()
+            .fixed_resize::<U1, D>(N::zero()),
+    )
 }

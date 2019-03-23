@@ -93,7 +93,7 @@ impl Display for LogLinearShockleyModel {
 fn log_linear_simplified_shockley(
     trace: &[(f64, f64)],
     current_offset: CurrentOffsetModel,
-) -> LogLinearShockleyModel {
+) -> Option<LogLinearShockleyModel> {
     let xs = MatrixMN::<f64, U2, Dynamic>::from_rows(&[
         RowDVector::from_iterator(trace.len(), trace.iter().cloned().map(|(v, _)| v)),
         RowDVector::from_element(trace.len(), 1.0),
@@ -101,15 +101,15 @@ fn log_linear_simplified_shockley(
     let mut ys = DVector::from_iterator(trace.len(), trace.iter().cloned().map(|(_, i)| i));
     ys.apply(|i| (i - current_offset.current_offset).max(0.00001).ln());
 
-    let betas = linear_regression(xs, ys);
+    let betas = linear_regression(xs, ys)?;
     let n_vt = 1.0 / betas[(0, 0)];
     let is = betas[(0, 1)].exp();
 
-    LogLinearShockleyModel {
+    Some(LogLinearShockleyModel {
         current_offset,
         is,
         n_vt,
-    }
+    })
 }
 
 #[derive(Clone, Debug)]
@@ -207,13 +207,13 @@ fn shockley(trace: &[(f64, f64)], simplified_shockley: LogLinearShockleyModel) -
     model
 }
 
-pub fn diode_model(trace: &RawTrace) -> ShockleyModel {
+pub fn diode_model(trace: &RawTrace) -> Option<ShockleyModel> {
     let trace =
         PieceWiseConstantFunction::from_points(0.0, 5.0, 5000, 1, &trace.iter().collect_vec())
             .iter()
             .collect_vec();
-    shockley(
+    Some(shockley(
         &trace,
-        log_linear_simplified_shockley(&trace, current_offset(&trace)),
-    )
+        log_linear_simplified_shockley(&trace, current_offset(&trace))?,
+    ))
 }
