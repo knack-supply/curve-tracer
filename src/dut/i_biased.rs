@@ -62,7 +62,7 @@ impl CurrentBiasedDevice {
             self.config.max_bias_current,
             5,
         )
-        .map(|l| l * polarity / r64(1_000_000.0))
+        .map(|l| l * polarity)
         .collect_vec()
     }
 }
