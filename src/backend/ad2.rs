@@ -15,8 +15,13 @@ pub struct AD2 {
     current_shunt_ohms: f64,
     bias_limiter_ohms: f64,
     sampling_time: f64,
+    capture_offset_stabilization_time: f64,
     bias_level_sampling_time: f64,
+    sampling_frequency: f64,
     cycles_to_sample: u32,
+    cycles_to_skip: u32,
+    max_v: f64,
+    min_v: f64,
 }
 
 impl AD2 {
@@ -37,9 +42,14 @@ impl AD2 {
             diode_current_limit_ma: 40.0,
             current_shunt_ohms: 101.0,
             bias_limiter_ohms: 100_000.0,
-            sampling_time: 1.0,
-            bias_level_sampling_time: 1.0,
-            cycles_to_sample: 3,
+            sampling_time: 0.5,
+            capture_offset_stabilization_time: 0.5,
+            bias_level_sampling_time: 0.3,
+            sampling_frequency: 500_000.0,
+            cycles_to_sample: 5,
+            cycles_to_skip: 1,
+            max_v: 2.2,
+            min_v: -2.2,
         })
     }
 
@@ -132,16 +142,23 @@ impl Backend for AD2 {
 
         self.enable_power()?;
 
-        let hz = f64::from(self.cycles_to_sample) / self.sampling_time;
+        let hz = f64::from(self.cycles_to_sample + self.cycles_to_skip) / self.sampling_time;
         let current_limit = self.diode_current_limit_ma / 1000.0;
-        let max_v = current_limit * self.current_shunt_ohms + 0.5;
-        let total_time = self.sampling_time + 0.05;
+        let max_v = (current_limit * self.current_shunt_ohms + 0.5)
+            .min(self.max_v)
+            .max(self.min_v);
+        let time_slack = 0.05;
+        let total_time = self.sampling_time + time_slack;
 
         let out_vf = self.device.analog_out(0);
         out_vf.set_idle_mode(AnalogOutIdleMode::Initial)?;
         out_vf.set_trigger_source(TriggerSource::AnalogIn)?;
         let out_vf_carrier = out_vf.node(0);
 
+        debug!(
+            "Setting up a triangle waveform between A and K: [{}, {}] at {} Hz",
+            0.0, max_v, hz
+        );
         out_vf_carrier.set_function(AnalogOutFunction::Triangle {
             frequency: hz,
             amplitude: max_v / 2.0,
@@ -150,13 +167,13 @@ impl Backend for AD2 {
             phase_deg: 270.0,
         })?;
         out_vf_carrier.set_enabled(true)?;
-        out_vf.set_duration(Duration::nanoseconds((total_time / 1.0e9) as i64))?;
+        out_vf.set_duration(Duration::nanoseconds((total_time * 1.0e9) as i64))?;
         out_vf.set_repeat_count(0)?;
 
         out_vf.start()?;
 
         let input = self.device.analog_input();
-        input.set_frequency(250_000.0)?;
+        input.set_frequency(self.sampling_frequency)?;
         input.set_record_mode(self.sampling_time)?;
 
         let in_v_shunt = input.channel(0);
@@ -167,16 +184,24 @@ impl Backend for AD2 {
         in_v.set_offset(-0.5)?;
         in_v.set_range(1.0)?;
 
+        std::thread::sleep(
+            Duration::nanoseconds((self.capture_offset_stabilization_time * 1.0e9) as i64)
+                .to_std()?,
+        );
+
         input.start()?;
 
         let mut vs = Vec::new();
         let mut vss = Vec::new();
-        Self::record_raw(&input, &in_v, &mut vs, &in_v_shunt, &mut vss)?;
-
+        {
+            debug_time!("Tracing");
+            Self::record_raw(&input, &in_v, &mut vs, &in_v_shunt, &mut vss)?;
+        }
         out_vf.stop()?;
         self.disable_power()?;
 
-        let start_ix = vs.len() / self.cycles_to_sample as usize;
+        let start_ix = (vs.len() as f64 * self.cycles_to_skip as f64
+            / (self.cycles_to_skip + self.cycles_to_sample) as f64) as usize;
         let is = vss
             .into_iter()
             .skip(start_ix)
@@ -206,9 +231,12 @@ impl Backend for AD2 {
 
         self.enable_power()?;
 
-        let hz = f64::from(self.cycles_to_sample) / self.bias_level_sampling_time;
+        let hz =
+            f64::from(self.cycles_to_sample + self.cycles_to_skip) / self.bias_level_sampling_time;
         let current_limit = self.diode_current_limit_ma / 1000.0;
-        let max_v = current_limit * self.current_shunt_ohms + 0.5 * polarity.raw();
+        let max_v = (current_limit * self.current_shunt_ohms + 0.5 * polarity.raw())
+            .min(self.max_v)
+            .max(self.min_v);
         let time_slack = 0.05;
         let total_time = self.bias_level_sampling_time + time_slack;
 
@@ -217,6 +245,10 @@ impl Backend for AD2 {
         out_vf.set_trigger_source(TriggerSource::AnalogIn)?;
         let out_vf_carrier = out_vf.node(0);
 
+        debug!(
+            "Setting up a triangle waveform between C/D and E/S: [{}, {}] at {} Hz",
+            0.0, max_v, hz
+        );
         out_vf_carrier.set_function(AnalogOutFunction::Triangle {
             frequency: hz,
             amplitude: max_v / 2.0,
@@ -225,7 +257,7 @@ impl Backend for AD2 {
             phase_deg: 270.0,
         })?;
         out_vf_carrier.set_enabled(true)?;
-        out_vf.set_duration(Duration::nanoseconds((total_time / 1.0e9) as i64))?;
+        out_vf.set_duration(Duration::nanoseconds((total_time * 1.0e9) as i64))?;
         out_vf.set_repeat_count(0)?;
 
         let out_bias = self.device.analog_out(1);
@@ -235,11 +267,11 @@ impl Backend for AD2 {
 
         out_bias_carrier.set_function(AnalogOutFunction::Const { offset: 0.0 })?;
         out_bias_carrier.set_enabled(true)?;
-        out_bias.set_duration(Duration::nanoseconds((total_time / 1.0e9) as i64))?;
+        out_bias.set_duration(Duration::nanoseconds((total_time * 1.0e9) as i64))?;
         out_bias.set_repeat_count(0)?;
 
         let input = self.device.analog_input();
-        input.set_frequency(250_000.0)?;
+        input.set_frequency(self.sampling_frequency)?;
         input.set_record_mode(self.bias_level_sampling_time)?;
 
         let in_v_shunt = input.channel(0);
@@ -250,25 +282,38 @@ impl Backend for AD2 {
         in_v.set_offset(-0.5)?;
         in_v.set_range(1.0)?;
 
+        std::thread::sleep(
+            Duration::nanoseconds((self.capture_offset_stabilization_time * 1.0e9) as i64)
+                .to_std()?,
+        );
+
         let mut traces = vec![];
 
         for (bias_value, bias_v) in bias_levels {
+            debug_time!("Tracing at a single bias level");
+            debug!("Setting up bias voltage at B/G: {}", bias_v);
+
             out_bias_carrier.set_function(AnalogOutFunction::Const {
                 offset: bias_v.raw(),
             })?;
 
             out_vf.start()?;
-            std::thread::sleep(Duration::nanoseconds((time_slack * 2.0 / 1.0e9) as i64).to_std()?);
+            std::thread::sleep(Duration::nanoseconds((time_slack * 2.0 * 1.0e9) as i64).to_std()?);
 
             input.start()?;
 
             let mut vs = Vec::new();
             let mut vss = Vec::new();
-            Self::record_raw(&input, &in_v, &mut vs, &in_v_shunt, &mut vss)?;
+            {
+                debug_time!("Recording");
+                Self::record_raw(&input, &in_v, &mut vs, &in_v_shunt, &mut vss)?;
+            }
 
             out_vf.stop()?;
 
-            let start_ix = vs.len() / self.cycles_to_sample as usize;
+            let start_ix = (vs.len() as f64 * self.cycles_to_skip as f64
+                / (self.cycles_to_skip + self.cycles_to_sample) as f64)
+                as usize;
             let is = vss
                 .into_iter()
                 .skip(start_ix)
