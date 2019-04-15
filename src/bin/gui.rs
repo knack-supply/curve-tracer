@@ -7,8 +7,8 @@ extern crate relm;
 #[macro_use]
 extern crate relm_derive;
 
-use cairo::enums::FontSlant;
-use cairo::enums::FontWeight;
+use cairo::FontSlant;
+use cairo::FontWeight;
 use gdk_pixbuf::Pixbuf;
 use gtk;
 use gtk::ButtonBoxExt;
@@ -160,11 +160,8 @@ impl Update for Win {
         debug!("Event: {:?}", &event);
         match event {
             Msg::Trace => {
-                let drawing_area_overlay_style = self
-                    .widgets
-                    .drawing_area_overlay
-                    .get_style_context()
-                    .unwrap();
+                let drawing_area_overlay_style =
+                    self.widgets.drawing_area_overlay.get_style_context();
                 drawing_area_overlay_style.add_class("active");
                 self.widgets.model_text.set_markup("");
                 self.widgets
@@ -214,11 +211,8 @@ impl Update for Win {
                     .model_text
                     .set_markup(&self.model.trace.model_report());
                 self.model.relm.stream().emit(Msg::UpdateDrawBuffer);
-                let drawing_area_overlay_style = self
-                    .widgets
-                    .drawing_area_overlay
-                    .get_style_context()
-                    .unwrap();
+                let drawing_area_overlay_style =
+                    self.widgets.drawing_area_overlay.get_style_context();
                 drawing_area_overlay_style.remove_class("active");
             }
             Msg::UpdateDrawBuffer => {
@@ -588,10 +582,7 @@ impl Widget for Win {
         drawing_area_overlay.set_vexpand(true);
         let drawing_area = DrawingArea::new();
 
-        // .init() disables double buffering for some reason
         model.draw_handler.init(&drawing_area);
-        #[allow(deprecated)]
-        drawing_area.set_double_buffered(true);
 
         drawing_area.set_hexpand(true);
         drawing_area.set_size_request(500, 500);
