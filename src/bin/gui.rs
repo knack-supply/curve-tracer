@@ -1,5 +1,3 @@
-#![feature(try_blocks)]
-
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -172,24 +170,26 @@ impl Update for Win {
                 let (_, sender) = Channel::new(move |msg| {
                     stream.emit(msg);
                 });
-                let res = try {
+                let res = (|| {
                     let capture_device = self.model.opt.device()?;
                     let dut = self.model.device.clone();
 
                     thread::spawn(move || {
-                        let res = try {
+                        let res = (|| {
                             let trace: Arc<dyn ShareableTrace> =
                                 Arc::from(dut.trace(&*capture_device)?);
                             info!("Got the trace");
                             sender
                                 .send(Msg::TraceSucceeded(trace))
                                 .expect("send message");
-                        };
+                            Ok(())
+                        })();
                         if let Err(err) = res {
                             sender.send(Msg::TraceFailed(err)).expect("send message");
                         }
                     });
-                };
+                    Ok(())
+                })();
                 if let Err(err) = res {
                     self.model.relm.stream().emit(Msg::TraceFailed(err));
                 }
@@ -379,7 +379,7 @@ impl Update for Win {
 
                 if dialog.run() == gtk::ResponseType::Accept.into() {
                     if let Some(filename) = dialog.get_filename() {
-                        let res = try {
+                        let res = (|| {
                             self.model.trace =
                                 self.model.device.load_from_csv(filename)?.as_gui_trace();
                             info!("Got the trace");
@@ -389,7 +389,8 @@ impl Update for Win {
                             self.model.relm.stream().emit(Msg::UpdateDrawBuffer);
 
                             self.model.relm.stream().emit(Msg::FitModel);
-                        };
+                            Ok(())
+                        })();
                         let _ = self.handle_error(res);
                     }
                 }
