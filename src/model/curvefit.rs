@@ -184,7 +184,7 @@ where
 
     let x_svd = {
         let x_t = x.transpose();
-        if x_t.len() == 0 {
+        if x_t.is_empty() {
             return None;
         }
         trace_time!("SVD");

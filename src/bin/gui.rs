@@ -498,7 +498,8 @@ impl Widget for Win {
                 SomeDeviceType::CurrentBiased(CurrentBiasedDeviceType::PNP),
             ]
             .iter()
-            .map(|d| (format!("{}", d), Msg::DeviceType(d.clone())));
+            .copied()
+            .map(|d| (format!("{}", d), Msg::DeviceType(d)));
             let (buttons, last_button) = radio_button_box(&relm, options, 0, None).unwrap();
             right_pane.add(&buttons);
 
@@ -509,7 +510,8 @@ impl Widget for Win {
                 SomeDeviceType::VoltageBiased(VoltageBiasedDeviceType::PDFET),
             ]
             .iter()
-            .map(|d| (format!("{}", d), Msg::DeviceType(d.clone())));
+            .copied()
+            .map(|d| (format!("{}", d), Msg::DeviceType(d)));
             let (buttons, _) = radio_button_box(&relm, options, 0, Some(last_button)).unwrap();
             right_pane.add(&buttons);
         }
@@ -525,10 +527,10 @@ impl Widget for Win {
         trace_button.set_hexpand(true);
         action_box.add(&trace_button);
 
-        let save_button = Button::new_from_icon_name("document-save", gtk::IconSize::Button.into());
+        let save_button = Button::new_from_icon_name("document-save", gtk::IconSize::Button);
         action_box.add(&save_button);
 
-        let load_button = Button::new_from_icon_name("document-open", gtk::IconSize::Button.into());
+        let load_button = Button::new_from_icon_name("document-open", gtk::IconSize::Button);
         action_box.add(&load_button);
 
         right_pane.add(&action_box);
@@ -536,6 +538,7 @@ impl Widget for Win {
         let device_config = right_pane.add_widget::<DeviceConfigWidget>(model.device.config());
         {
             let relm = relm.clone();
+            #[allow(clippy::single_match)]
             device_config.stream().observe(move |m| match m {
                 DeviceConfigMsg::ConfigUpdated(c) => {
                     relm.stream().emit(Msg::UpdateConfig(c.clone()));

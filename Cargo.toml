@@ -62,6 +62,7 @@ failure = "0.1.5"
 
 [dev-dependencies]
 criterion = "0.2"
+cargo-husky = { version = "1", features = ["precommit-hook", "run-cargo-clippy", "run-cargo-fmt"] }
 
 [features]
 link-with-stub = ["digilent-waveforms/link-with-stub"]

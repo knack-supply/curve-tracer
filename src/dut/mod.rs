@@ -142,17 +142,17 @@ impl Device for SomeDevice {
     fn set_config(&mut self, config: &Self::Config) {
         match self {
             SomeDevice::TwoTerminal(device) => {
-                for c in config.downcast::<TwoTerminalDeviceConfig>() {
+                if let Some(c) = config.downcast::<TwoTerminalDeviceConfig>() {
                     device.set_config(&c)
                 }
             }
             SomeDevice::VoltageBiased(device) => {
-                for c in config.downcast::<VoltageBiasedDeviceConfig>() {
+                if let Some(c) = config.downcast::<VoltageBiasedDeviceConfig>() {
                     device.set_config(&c)
                 }
             }
             SomeDevice::CurrentBiased(device) => {
-                for c in config.downcast::<CurrentBiasedDeviceConfig>() {
+                if let Some(c) = config.downcast::<CurrentBiasedDeviceConfig>() {
                     device.set_config(&c)
                 }
             }

@@ -109,6 +109,7 @@ impl Update for DeviceConfigWidget {
                         let comp = self.root().add_widget::<BJTOptionsWidget>(c.clone());
                         let stream = self.model.relm.stream().clone();
                         comp.stream().observe(move |msg| {
+                            #[allow(clippy::single_match)]
                             match msg {
                                 BJTOptionsMsg::Updated(config) => {
                                     stream.emit(DeviceConfigMsg::ConfigUpdated(DeviceConfig::BJT(
@@ -124,6 +125,7 @@ impl Update for DeviceConfigWidget {
                         let comp = self.root().add_widget::<FETOptionsWidget>(c.clone());
                         let stream = self.model.relm.stream().clone();
                         comp.stream().observe(move |msg| {
+                            #[allow(clippy::single_match)]
                             match msg {
                                 FETOptionsMsg::Updated(config) => {
                                     stream.emit(DeviceConfigMsg::ConfigUpdated(DeviceConfig::FET(

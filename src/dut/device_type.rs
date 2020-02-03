@@ -21,7 +21,7 @@ pub trait DeviceType {
 }
 
 impl SomeDeviceType {
-    pub fn connection_hint(&self) -> &'static str {
+    pub fn connection_hint(self) -> &'static str {
         match self {
             SomeDeviceType::TwoTerminal(TwoTerminalDeviceType::Diode) => "Top row: AKKKKKK",
             SomeDeviceType::CurrentBiased(CurrentBiasedDeviceType::NPN) => "Bottom row: CBECBEC",
@@ -44,15 +44,15 @@ impl DeviceType for SomeDeviceType {
     type Device = SomeDevice;
 
     fn to_device(&self) -> Self::Device {
-        match self {
+        match *self {
             SomeDeviceType::TwoTerminal(TwoTerminalDeviceType::Diode) => {
                 SomeDevice::TwoTerminal(TwoTerminalDevice::Diode)
             }
             SomeDeviceType::CurrentBiased(t) => {
-                SomeDevice::CurrentBiased(CurrentBiasedDevice::from_type(t.clone()))
+                SomeDevice::CurrentBiased(CurrentBiasedDevice::from_type(t))
             }
             SomeDeviceType::VoltageBiased(t) => {
-                SomeDevice::VoltageBiased(VoltageBiasedDevice::from_type(t.clone()))
+                SomeDevice::VoltageBiased(VoltageBiasedDevice::from_type(t))
             }
         }
     }
