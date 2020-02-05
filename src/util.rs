@@ -1,13 +1,13 @@
-use nalgebra::Real;
+use nalgebra::RealField;
 use num_traits::ToPrimitive;
 use std::fmt::Display;
 use std::fmt::Error;
 use std::fmt::Formatter;
 use std::fmt::Write;
 
-pub struct Engineering<N: Real>(pub N);
+pub struct Engineering<N: RealField>(pub N);
 
-impl<N: Real + ToPrimitive> Display for Engineering<N> {
+impl<N: RealField + ToPrimitive> Display for Engineering<N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         if self.0.is_zero() {
             write!(f, "{}", self.0)

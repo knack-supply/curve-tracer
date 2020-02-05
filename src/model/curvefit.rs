@@ -1,10 +1,10 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use nalgebra::allocator::Allocator;
 use nalgebra::allocator::Reallocator;
 use nalgebra::*;
 
-pub struct GaussNewtonParams<N: Real> {
+pub struct GaussNewtonParams<N: RealField> {
     pub min_iterations: usize,
     pub max_iterations: usize,
     pub max_absolute_change: N,
@@ -15,7 +15,7 @@ pub struct GaussNewtonParams<N: Real> {
     pub shift_cut_speed_up: N,
 }
 
-impl<N: Real> Default for GaussNewtonParams<N> {
+impl<N: RealField> Default for GaussNewtonParams<N> {
     fn default() -> Self {
         Self {
             min_iterations: 5,
@@ -30,7 +30,7 @@ impl<N: Real> Default for GaussNewtonParams<N> {
     }
 }
 
-pub trait DiffFn<N: Real, D: Dim + DimName> {
+pub trait DiffFn<N: RealField, D: Dim + DimName> {
     fn params(&self) -> &RowVectorN<N, D>
     where
         DefaultAllocator: Allocator<N, U1, D>;
@@ -62,13 +62,13 @@ pub trait DiffFn<N: Real, D: Dim + DimName> {
         DefaultAllocator: Allocator<N, U1, D> + Allocator<N, Dynamic, D>;
 }
 
-pub fn gauss_newton<N: Real, D: Dim + DimName, F>(
+pub fn gauss_newton<N: RealField, D: Dim + DimName, F>(
     xs: &DVector<N>,
     ys: &DVector<N>,
     model: &mut F,
     params: GaussNewtonParams<N>,
 ) where
-    F: DiffFn<N, D> + Clone + Debug,
+    F: DiffFn<N, D> + Clone + Debug + Display,
     DefaultAllocator: Allocator<N, U1, D>
         + Allocator<N, D>
         + Allocator<N, Dynamic, D>
@@ -84,7 +84,7 @@ pub fn gauss_newton<N: Real, D: Dim + DimName, F>(
     for iteration in 0..params.max_iterations {
         trace_time!("gauss_newton iteration {}", iteration);
         trace!("");
-        trace!("model: {:?}", model);
+        trace!("model: {}", model);
         trace!("shift cut: {}", shift_cut);
 
         let jacobian: MatrixMN<N, Dynamic, D> = {
@@ -94,7 +94,16 @@ pub fn gauss_newton<N: Real, D: Dim + DimName, F>(
 
         let svd: SVD<N, Dynamic, D> = {
             trace_time!("SVD");
-            SVD::new(jacobian, true, true)
+            trace!("jacobian: {}", jacobian);
+            if let Some(svd) = SVD::try_new(jacobian, true, true, N::default_epsilon(), 1000) {
+                svd
+            } else {
+                shift_cut *= params.shift_cut_refining_step;
+                if shift_cut < params.min_shift_cut {
+                    break;
+                }
+                continue;
+            }
         };
 
         let residuals: DVector<N> = {
@@ -137,6 +146,7 @@ pub fn gauss_newton<N: Real, D: Dim + DimName, F>(
         {
             let params = model.params() + correction;
             model.mut_params().copy_from(&params);
+            trace!("new model before sanitizing params: {}", model);
             model.sanitize_params();
         }
 
@@ -159,7 +169,7 @@ pub fn gauss_newton<N: Real, D: Dim + DimName, F>(
     }
 }
 
-pub fn linear_regression<N: Real, D: DimName>(
+pub fn linear_regression<N: RealField, D: DimName>(
     x: MatrixMN<N, D, Dynamic>,
     y: MatrixMN<N, Dynamic, U1>,
 ) -> Option<RowVectorN<N, D>>

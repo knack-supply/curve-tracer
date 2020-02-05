@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use log::LevelFilter;
-use simplelog::Config;
+use simplelog::{Config, TerminalMode};
 use structopt::StructOpt;
 
 use crate::backend::Backend;
@@ -35,7 +35,7 @@ pub struct CliOpt {
 
 impl Opt for CliOpt {
     fn initialize_logging(&self) -> Result<()> {
-        simplelog::TermLogger::init(LevelFilter::Debug, Config::default())?;
+        simplelog::TermLogger::init(LevelFilter::Debug, Config::default(), TerminalMode::Stderr)?;
         Ok(())
     }
 }
@@ -70,7 +70,7 @@ pub struct GuiOpt {
 
 impl Opt for GuiOpt {
     fn initialize_logging(&self) -> Result<()> {
-        simplelog::TermLogger::init(LevelFilter::Debug, Config::default())?;
+        simplelog::TermLogger::init(LevelFilter::Trace, Config::default(), TerminalMode::Stderr)?;
         Ok(())
     }
 }

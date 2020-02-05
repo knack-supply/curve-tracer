@@ -94,7 +94,7 @@ impl Widget for FETOptionsWidget {
             VoltageBiasedDeviceType::NDFET | VoltageBiasedDeviceType::PDFET => "-",
         };
 
-        let bias_label = gtk::Label::new("");
+        let bias_label = gtk::Label::new(Some(""));
         bias_label.set_markup(&format!("{}V<sub>GS</sub>", sign));
         hbox.add(&bias_label);
 
@@ -104,7 +104,7 @@ impl Widget for FETOptionsWidget {
         min_spinner.set_value(model.config.min_bias_voltage.raw());
         hbox.add(&min_spinner);
 
-        hbox.add(&gtk::Label::new("to"));
+        hbox.add(&gtk::Label::new(Some("to")));
 
         let max_spinner = gtk::SpinButton::new_with_range(0.0, 5.0, 0.1);
         max_spinner.set_numeric(true);
@@ -112,7 +112,7 @@ impl Widget for FETOptionsWidget {
         max_spinner.set_value(model.config.max_bias_voltage.raw());
         hbox.add(&max_spinner);
 
-        hbox.add(&gtk::Label::new("V"));
+        hbox.add(&gtk::Label::new(Some("V")));
 
         connect!(
             relm,

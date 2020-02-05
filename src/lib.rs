@@ -8,6 +8,9 @@ extern crate relm;
 extern crate relm_derive;
 #[macro_use]
 extern crate serde_derive;
+#[cfg(test)]
+#[macro_use]
+extern crate approx;
 
 pub mod backend;
 pub mod dut;

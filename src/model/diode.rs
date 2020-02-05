@@ -118,10 +118,22 @@ pub struct ShockleyModel {
 }
 
 impl ShockleyModel {
-    fn new(current_offset: f64, is: f64, n_vt: f64) -> Self {
+    pub fn new(current_offset: f64, is: f64, n_vt: f64) -> Self {
         ShockleyModel {
             p: RowVectorN::<f64, U3>::new(current_offset, is, n_vt),
         }
+    }
+
+    pub fn current_offset(&self) -> f64 {
+        self.p[0]
+    }
+
+    pub fn is(&self) -> f64 {
+        self.p[1]
+    }
+
+    pub fn n_vt(&self) -> f64 {
+        self.p[2]
     }
 }
 
@@ -216,4 +228,166 @@ pub fn diode_model(trace: &RawTrace) -> Option<ShockleyModel> {
         &trace,
         log_linear_simplified_shockley(&trace, current_offset(&trace))?,
     ))
+}
+
+#[cfg(test)]
+mod test {
+    use crate::dut::{Device, TwoTerminalDevice};
+    use crate::model::diode::diode_model;
+
+    #[test]
+    pub fn diode_model_1n914b_1() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N914B-1.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00010351606472697958);
+        assert_ulps_eq!(model.is(), 0.00000001339246591537158);
+        assert_ulps_eq!(model.n_vt(), 0.05362089917627807);
+    }
+
+    #[test]
+    pub fn diode_model_1n914b_2() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N914B-2.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00010891667963445857);
+        assert_ulps_eq!(model.is(), 0.00000001575645583320489);
+        assert_ulps_eq!(model.n_vt(), 0.05453485353716681);
+    }
+
+    #[test]
+    pub fn diode_model_1n914b_3() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N914B-3.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00010750577383021644);
+        assert_ulps_eq!(model.is(), 0.00000001737436843869876);
+        assert_ulps_eq!(model.n_vt(), 0.0548066592909008);
+    }
+
+    #[test]
+    pub fn diode_model_1n914b_4() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N914B-4.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00011048096014883068);
+        assert_ulps_eq!(model.is(), 0.000000013579226111879658);
+        assert_ulps_eq!(model.n_vt(), 0.053818676891366456);
+    }
+
+    #[test]
+    pub fn diode_model_1n914b_5() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N914B-5.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00010362189187519665);
+        assert_ulps_eq!(model.is(), 0.000000013350754252951973);
+        assert_ulps_eq!(model.n_vt(), 0.05372213169983885);
+    }
+
+    #[test]
+    pub fn diode_model_1n3064() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N3064.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00009030952069581359);
+        assert_ulps_eq!(model.is(), 0.000000020598921141859168);
+        assert_ulps_eq!(model.n_vt(), 0.056010773687125884);
+    }
+
+    #[test]
+    pub fn diode_model_1n4148() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N4148.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00011126775461178329);
+        assert_ulps_eq!(model.is(), 0.00000002550253216264574);
+        assert_ulps_eq!(model.n_vt(), 0.05694685448419158);
+    }
+
+    #[test]
+    pub fn diode_model_1n4728a_1() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N4728A-1.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00006731822330829186);
+        assert_ulps_eq!(model.is(), 0.00000000000010418575215848056);
+        assert_ulps_eq!(model.n_vt(), 0.02972677299183207);
+    }
+
+    #[test]
+    pub fn diode_model_1n4728a_2() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N4728A-2.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00010072469003392257);
+        assert_ulps_eq!(model.is(), 0.00000000000008253828486712959);
+        assert_ulps_eq!(model.n_vt(), 0.029615439704890802);
+    }
+
+    #[test]
+    pub fn diode_model_1n5711() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N5711.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.0009343569366573986);
+        assert_ulps_eq!(model.is(), 0.0012411529539231917);
+        assert_ulps_eq!(model.n_vt(), 0.31938696433362007);
+    }
+
+    #[test]
+    pub fn diode_model_1n5817() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/1N5817.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00008409489807032524);
+        assert_ulps_eq!(model.is(), 0.0000014443844196456792);
+        assert_ulps_eq!(model.n_vt(), 0.027616463683553666);
+    }
+
+    #[test]
+    pub fn diode_model_ba479g() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/BA479G.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00010205114135516167);
+        assert_ulps_eq!(model.is(), 0.00000001488752641197316);
+        assert_ulps_eq!(model.n_vt(), 0.062077401968406325);
+    }
+
+    #[test]
+    pub fn diode_model_bat41() {
+        let device = TwoTerminalDevice::Diode {};
+
+        let trace = device.load_from_csv("res/BAT41.csv").unwrap();
+        let model = diode_model(&trace.trace).unwrap();
+
+        assert_ulps_eq!(model.current_offset(), -0.00021971907183807187);
+        assert_ulps_eq!(model.is(), 0.00012064581788991523);
+        assert_ulps_eq!(model.n_vt(), 0.1560197078159157);
+    }
 }

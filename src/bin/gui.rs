@@ -274,7 +274,7 @@ impl Update for Win {
                     cr.stroke();
                 }
 
-                self.model.trace.draw(&cr, v_factor, i_factor, height);
+                self.model.trace.draw(&*cr, v_factor, i_factor, height);
 
                 for (ix, i_gridline) in linspace(0.0, max_i, 11).enumerate() {
                     if ix > 0 {
@@ -358,7 +358,7 @@ impl Update for Win {
                 );
                 dialog.set_do_overwrite_confirmation(true);
 
-                if dialog.run() == gtk::ResponseType::Accept.into() {
+                if dialog.run() == gtk::ResponseType::Accept {
                     if let Some(filename) = dialog.get_filename() {
                         let _ = self.model.trace.save_as_csv(&filename);
                     }
@@ -377,7 +377,7 @@ impl Update for Win {
                 );
                 dialog.set_do_overwrite_confirmation(true);
 
-                if dialog.run() == gtk::ResponseType::Accept.into() {
+                if dialog.run() == gtk::ResponseType::Accept {
                     if let Some(filename) = dialog.get_filename() {
                         let res = (|| {
                             self.model.trace =
@@ -426,7 +426,7 @@ impl Widget for Win {
         right_pane.set_margin_end(4);
         right_pane.set_hexpand(false);
 
-        let help_text = gtk::Label::new("");
+        let help_text = gtk::Label::new(Some(""));
         help_text.set_xalign(0.0);
         help_text.set_markup("\
         This is an early version of the software.\n\
@@ -516,7 +516,7 @@ impl Widget for Win {
             right_pane.add(&buttons);
         }
 
-        let connection_hint_text = gtk::Label::new("");
+        let connection_hint_text = gtk::Label::new(Some(""));
         connection_hint_text.set_xalign(0.0);
         connection_hint_text.set_markup(model.device.device_type().connection_hint());
         right_pane.add(&connection_hint_text);
@@ -527,10 +527,10 @@ impl Widget for Win {
         trace_button.set_hexpand(true);
         action_box.add(&trace_button);
 
-        let save_button = Button::new_from_icon_name("document-save", gtk::IconSize::Button);
+        let save_button = Button::new_from_icon_name(Some("document-save"), gtk::IconSize::Button);
         action_box.add(&save_button);
 
-        let load_button = Button::new_from_icon_name("document-open", gtk::IconSize::Button);
+        let load_button = Button::new_from_icon_name(Some("document-open"), gtk::IconSize::Button);
         action_box.add(&load_button);
 
         right_pane.add(&action_box);
@@ -551,13 +551,13 @@ impl Widget for Win {
         filler.set_vexpand(true);
         right_pane.add(&filler);
 
-        let model_text = gtk::Label::new("");
+        let model_text = gtk::Label::new(Some(""));
         model_text.set_xalign(0.0);
         model_text.set_margin_top(8);
         model_text.set_margin_bottom(8);
         right_pane.add(&model_text);
 
-        let legend_text = gtk::Label::new("");
+        let legend_text = gtk::Label::new(Some(""));
         legend_text.set_xalign(0.0);
         legend_text.set_markup(&model.device.legend());
         right_pane.add(&legend_text);

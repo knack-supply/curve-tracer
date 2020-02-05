@@ -88,7 +88,7 @@ impl Widget for BJTOptionsWidget {
     fn view(relm: &Relm<Self>, model: Self::Model) -> Self {
         let hbox = gtk::Box::new(gtk::Orientation::Horizontal, 8);
 
-        let bias_label = gtk::Label::new("");
+        let bias_label = gtk::Label::new(Some(""));
         bias_label.set_markup("I<sub>BE</sub>");
         hbox.add(&bias_label);
 
@@ -98,7 +98,7 @@ impl Widget for BJTOptionsWidget {
         min_spinner.set_value(model.config.min_bias_current.raw() * 1_000_000.0);
         hbox.add(&min_spinner);
 
-        hbox.add(&gtk::Label::new("to"));
+        hbox.add(&gtk::Label::new(Some("to")));
 
         let max_spinner = gtk::SpinButton::new_with_range(0.0, 50.0, 1.0);
         max_spinner.set_numeric(true);
@@ -106,7 +106,7 @@ impl Widget for BJTOptionsWidget {
         max_spinner.set_value(model.config.max_bias_current.raw() * 1_000_000.0);
         hbox.add(&max_spinner);
 
-        hbox.add(&gtk::Label::new("µA"));
+        hbox.add(&gtk::Label::new(Some("µA")));
 
         connect!(
             relm,
