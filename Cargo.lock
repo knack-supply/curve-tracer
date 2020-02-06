@@ -224,8 +224,7 @@ dependencies = [
 [[package]]
 name = "cairo-rs"
 version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e05db47de3b0f09a222fa4bba2eab957d920d4243962a86b2d77ab401e4a359c"
+source = "git+https://github.com/ilya-epifanov/cairo.git?rev=c70497324c627c1075cd70962edf9e3ea6c217a7#c70497324c627c1075cd70962edf9e3ea6c217a7"
 dependencies = [
  "bitflags",
  "cairo-sys-rs",

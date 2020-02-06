@@ -79,3 +79,6 @@ path = "src/bin/cli.rs"
 [[bench]]
 name = "benchmark"
 harness = false
+
+[patch.crates-io]
+cairo-rs = { git = "https://github.com/ilya-epifanov/cairo.git", rev = "c70497324c627c1075cd70962edf9e3ea6c217a7" }
