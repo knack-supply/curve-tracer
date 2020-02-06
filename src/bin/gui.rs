@@ -58,6 +58,7 @@ use ks_curve_tracer::dut::{
 use ks_curve_tracer::gui::widgets::{DeviceConfig, DeviceConfigMsg, DeviceConfigWidget};
 use ks_curve_tracer::options::GuiOpt;
 use ks_curve_tracer::options::Opt;
+use ks_curve_tracer::util::VERSION;
 use ks_curve_tracer::Result;
 use std::sync::Arc;
 use std::thread;
@@ -428,15 +429,15 @@ impl Widget for Win {
 
         let help_text = gtk::Label::new(Some(""));
         help_text.set_xalign(0.0);
-        help_text.set_markup("\
-        This is an early version of the software.\n\
+        help_text.set_markup(&format!("\
+        Version: {}\n
         Please submit your suggestions and bug reports here:\n\
         <a href=\"https://github.com/knack-supply/curve-tracer/issues\">https://github.com/knack-supply/curve-tracer/issues</a>\n\
         \n\
         Usage:\n\
         1) Select the device type\n\
         2) Set the trace settings, such as bias levels\n\
-        3) Press \"Trace\" button below");
+        3) Press \"Trace\" button below", VERSION));
 
         right_pane.add(&help_text);
 

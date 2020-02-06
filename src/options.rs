@@ -17,11 +17,19 @@ pub trait Opt {
 
 #[derive(StructOpt, Debug)]
 enum CliBackendOption {
-    #[structopt(name = "dwf")]
+    #[structopt(
+        name = "dwf",
+        about = "pick the first device through the Digilent™ WaveForms™ API"
+    )]
     DWF,
-    #[structopt(name = "csv")]
+    #[structopt(name = "csv", about = "analyze a CSV file")]
     Csv {
-        #[structopt(short = "f", long = "file", parse(from_os_str))]
+        #[structopt(
+            short = "f",
+            long = "file",
+            parse(from_os_str),
+            help = "CSV file to open"
+        )]
         file: PathBuf,
     },
 }
@@ -31,11 +39,18 @@ enum CliBackendOption {
 pub struct CliOpt {
     #[structopt(subcommand)]
     device: Option<CliBackendOption>,
+    #[structopt(
+        short,
+        long,
+        default_value = "warn",
+        help = "off, error, warn, info, debug or trace"
+    )]
+    log_level: LevelFilter,
 }
 
 impl Opt for CliOpt {
     fn initialize_logging(&self) -> Result<()> {
-        simplelog::TermLogger::init(LevelFilter::Debug, Config::default(), TerminalMode::Stderr)?;
+        simplelog::TermLogger::init(self.log_level, Config::default(), TerminalMode::Stderr)?;
         Ok(())
     }
 }
@@ -57,7 +72,10 @@ impl CliOpt {
 
 #[derive(StructOpt, Debug)]
 enum GuiBackendOption {
-    #[structopt(name = "dwf")]
+    #[structopt(
+        name = "dwf",
+        about = "pick the first device through the Digilent™ WaveForms™ API"
+    )]
     DWF,
 }
 
@@ -66,11 +84,18 @@ enum GuiBackendOption {
 pub struct GuiOpt {
     #[structopt(subcommand)]
     device: Option<GuiBackendOption>,
+    #[structopt(
+        short,
+        long,
+        default_value = "warn",
+        help = "off, error, warn, info, debug or trace"
+    )]
+    log_level: LevelFilter,
 }
 
 impl Opt for GuiOpt {
     fn initialize_logging(&self) -> Result<()> {
-        simplelog::TermLogger::init(LevelFilter::Trace, Config::default(), TerminalMode::Stderr)?;
+        simplelog::TermLogger::init(self.log_level, Config::default(), TerminalMode::Stderr)?;
         Ok(())
     }
 }

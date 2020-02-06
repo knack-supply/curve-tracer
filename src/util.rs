@@ -5,6 +5,8 @@ use std::fmt::Error;
 use std::fmt::Formatter;
 use std::fmt::Write;
 
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub struct Engineering<N: RealField>(pub N);
 
 impl<N: RealField + ToPrimitive> Display for Engineering<N> {
