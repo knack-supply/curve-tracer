@@ -855,7 +855,7 @@ dependencies = [
 
 [[package]]
 name = "ks-curve-tracer"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "approx",
  "autodiff",
