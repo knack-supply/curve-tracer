@@ -430,7 +430,7 @@ impl Widget for Win {
         let help_text = gtk::Label::new(Some(""));
         help_text.set_xalign(0.0);
         help_text.set_markup(&format!("\
-        Version: {}\n
+        Version: {}\n\
         Please submit your suggestions and bug reports here:\n\
         <a href=\"https://github.com/knack-supply/curve-tracer/issues\">https://github.com/knack-supply/curve-tracer/issues</a>\n\
         \n\
@@ -582,7 +582,7 @@ impl Widget for Win {
         }
 
         let drawing_area_overlay = gtk::Overlay::new();
-        drawing_area_overlay.set_name("iv-curve");
+        drawing_area_overlay.set_widget_name("iv-curve");
         drawing_area_overlay.set_hexpand(true);
         drawing_area_overlay.set_vexpand(true);
         let drawing_area = DrawingArea::new();
